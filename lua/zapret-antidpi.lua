@@ -62,10 +62,10 @@ standard ip_id :
 standard ipfrag :
 
 * ipfrag - ipfrag function name. "ipfrag2" by default if empty
+* ipfrag_disorder - send fragments from last to first
 * ipfrag2 : ipfrag_pos_udp - udp frag position. ipv4 : starting from L4 header. ipb6: starting from fragmentable part. must be multiple of 8. default 8
 * ipfrag2 : ipfrag_pos_tcp - tcp frag position. ipv4 : starting from L4 header. ipb6: starting from fragmentable part. must be multiple of 8. default 32
 * ipfrag2 : ipfrag_next - next protocol field in ipv6 fragment extenstion header of the second fragment. same as first by default.
-* ipfrag2 : ipfrag_disorder - send fragments from last to first
 
 ]]
 
