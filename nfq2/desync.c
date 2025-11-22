@@ -690,12 +690,10 @@ static uint8_t desync(
 			ctx.func = func->func;
 			desync_instance(func->func, dp->n, func_n, instance, sizeof(instance));
 			ctx.instance = instance;
+			range = bIncoming ? &func->range_in : &func->range_out;
 
 			if (b_unwanted_payload)
-			{
-				range = bIncoming ? &func->range_in : &func->range_out;
 				b_unwanted_payload &= !l7_payload_match(l7payload, func->payload_type);
-			}
 
 			if (b_cutoff_all)
 			{
@@ -703,7 +701,7 @@ static uint8_t desync(
 					DLOG("* lua '%s' : voluntary cutoff\n", instance);
 	   			else if (check_pos_cutoff(ctrack, bIncoming, range))
 				{
-					DLOG("* lua '%s' : %s pos %c%u %c%u is beyond range %c%u%c%c%u (ctrack %s)\n",
+					DLOG("* lua '%s' : %s pos %c%llu %c%llu is beyond range %c%u%c%c%u (ctrack %s)\n",
 						instance, sDirection,
 						range->from.mode, pos_get(ctrack, range->from.mode, bIncoming),
 						range->to.mode, pos_get(ctrack, range->to.mode, bIncoming),
@@ -769,7 +767,7 @@ static uint8_t desync(
 					range = bIncoming ? &func->range_in : &func->range_out;
 					if (check_pos_range(ctrack, bIncoming, range))
 					{
-						DLOG("* lua '%s' : %s pos %c%u %c%u in range %c%u%c%c%u\n",
+						DLOG("* lua '%s' : %s pos %c%llu %c%llu in range %c%u%c%c%u\n",
 							instance, sDirection,
 							range->from.mode, pos_get(ctrack, range->from.mode, bIncoming),
 							range->to.mode, pos_get(ctrack, range->to.mode, bIncoming),
@@ -846,7 +844,7 @@ static uint8_t desync(
 							DLOG("* lua '%s' : payload_type '%s' does not satisfy filter\n", instance, l7payload_str(l7payload));
 					}
 					else
-						DLOG("* lua '%s' : %s pos %c%u %c%u out of range %c%u%c%c%u\n",
+						DLOG("* lua '%s' : %s pos %c%llu %c%llu out of range %c%u%c%c%u\n",
 							instance, sDirection,
 							range->from.mode, pos_get(ctrack, range->from.mode, bIncoming),
 							range->to.mode, pos_get(ctrack, range->to.mode, bIncoming),
