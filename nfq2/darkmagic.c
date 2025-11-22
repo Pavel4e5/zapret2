@@ -634,8 +634,8 @@ static BOOL RemoveTokenPrivs()
 						}
 					}
 					bRes = AdjustTokenPrivileges(hToken, FALSE, privs, dwSize, NULL, NULL);
+					free(privs);
 				}
-				free(privs);
 			}
 			CloseHandle(hToken);
 		}
