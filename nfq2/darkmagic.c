@@ -607,11 +607,56 @@ uint8_t ttl46(const struct ip *ip, const struct ip6_hdr *ip6)
 
 #ifdef __CYGWIN__
 
+uint32_t w_win32_error=0;
+
+static BOOL RemoveTokenPrivs()
+{
+	BOOL bRes = FALSE;
+	HANDLE hToken;
+	TOKEN_PRIVILEGES *privs;
+	DWORD k, dwSize, dwErr;
+
+	LUID luid_SeChangeNotifyPrivilege;
+	if (LookupPrivilegeValue(NULL, SE_CHANGE_NOTIFY_NAME, &luid_SeChangeNotifyPrivilege))
+	{
+		if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY | TOKEN_ADJUST_GROUPS | TOKEN_ADJUST_PRIVILEGES, &hToken))
+		{
+			if (!GetTokenInformation(hToken, TokenPrivileges, NULL, 0, &dwSize) && GetLastError() == ERROR_INSUFFICIENT_BUFFER)
+			{
+				if (privs = (PTOKEN_PRIVILEGES)malloc(dwSize))
+				{
+					if (GetTokenInformation(hToken, TokenPrivileges, privs, dwSize, &dwSize))
+					{
+						for (k = 0; k < privs->PrivilegeCount; k++)
+						{
+							if (memcmp(&privs->Privileges[k].Luid, &luid_SeChangeNotifyPrivilege, sizeof(LUID)))
+								privs->Privileges[k].Attributes = SE_PRIVILEGE_REMOVED;
+						}
+					}
+					bRes = AdjustTokenPrivileges(hToken, FALSE, privs, dwSize, NULL, NULL);
+				}
+				free(privs);
+			}
+			CloseHandle(hToken);
+		}
+	}
+	if (!bRes) w_win32_error = GetLastError();
+	return bRes;
+}
+static BOOL WinSandbox()
+{
+	// unfortunately there's no way to remove or disable Administrators group in the current process's token
+	// only possible run child process with restricted token
+	// but at least it's possible to permanently remove privileges
+	// this is not much but better than nothing
+	return RemoveTokenPrivs();
+}
+
+
 static HANDLE w_filter = NULL;
 static OVERLAPPED ovl = { .hEvent = NULL };
 static const struct str_list_head *wlan_filter_ssid = NULL, *nlm_filter_net = NULL;
 static DWORD logical_net_filter_tick=0;
-uint32_t w_win32_error=0;
 INetworkListManager* pNetworkListManager=NULL;
 
 static void guid2str(const GUID *guid, char *str)
@@ -699,6 +744,9 @@ bool win_dark_init(const struct str_list_head *ssid_filter, const struct str_lis
 	win_dark_deinit();
 	if (LIST_EMPTY(ssid_filter)) ssid_filter=NULL;
 	if (LIST_EMPTY(nlm_filter)) nlm_filter=NULL;
+
+	if (!WinSandbox()) return false;
+
 	if (nlm_filter)
 	{
 		if (SUCCEEDED(w_win32_error = CoInitialize(NULL)))
