@@ -614,9 +614,9 @@ static BOOL RemoveTokenPrivs()
 	BOOL bRes = FALSE;
 	HANDLE hToken;
 	TOKEN_PRIVILEGES *privs;
-	DWORD k, dwSize, dwErr;
-
+	DWORD k, dwSize;
 	LUID luid_SeChangeNotifyPrivilege;
+
 	if (LookupPrivilegeValue(NULL, SE_CHANGE_NOTIFY_NAME, &luid_SeChangeNotifyPrivilege))
 	{
 		if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY | TOKEN_ADJUST_GROUPS | TOKEN_ADJUST_PRIVILEGES, &hToken))
