@@ -274,7 +274,7 @@ function wsize(ctx, desync)
 	end
 end
 
--- nfqws1 : "--wsize"
+-- nfqws1 : "--wssize"
 -- standard args : direction
 -- arg : wsize=N . tcp window size
 -- arg : scale=N . tcp option scale factor
