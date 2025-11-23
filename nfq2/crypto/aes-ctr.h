@@ -3,5 +3,5 @@
 #include <stdint.h>
 #include "aes.h"
 
-// this function rewrites buf
-void aes_ctr_xcrypt_buffer(aes_context *ctx, const uint8_t *iv, uint8_t *buf, size_t length);
+void aes_ctr_xcrypt_buffer(aes_context *ctx, const uint8_t *iv, const uint8_t *in, size_t length, uint8_t *out);
+int aes_ctr_crypt(const uint8_t *key, const size_t key_len, const uint8_t *iv, const uint8_t *in, size_t length, uint8_t *out);

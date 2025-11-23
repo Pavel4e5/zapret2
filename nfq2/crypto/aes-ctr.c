@@ -3,7 +3,7 @@
 
 #define AES_BLOCKLEN 16
 
-void aes_ctr_xcrypt_buffer(aes_context *ctx, const uint8_t *iv, uint8_t *buf, size_t length)
+void aes_ctr_xcrypt_buffer(aes_context *ctx, const uint8_t *iv, const uint8_t *in, size_t length, uint8_t *out)
 {
 	uint8_t bi, buffer[AES_BLOCKLEN], ivc[AES_BLOCKLEN];
 	size_t i;
@@ -31,6 +31,19 @@ void aes_ctr_xcrypt_buffer(aes_context *ctx, const uint8_t *iv, uint8_t *buf, si
 			}
 			bi = 0;
 		}
-		buf[i] = (buf[i] ^ buffer[bi]);
+		out[i] = in[i] ^ buffer[bi];
 	}
+}
+
+int aes_ctr_crypt(const uint8_t *key, const size_t key_len, const uint8_t *iv, const uint8_t *in, size_t length, uint8_t *out)
+{
+	int ret=0;
+	aes_context ctx;
+
+	aes_init_keygen_tables();
+
+	if (!(ret=aes_setkey(&ctx, AES_ENCRYPT, key, key_len)))
+		aes_ctr_xcrypt_buffer(&ctx, iv, in, length, out);
+
+	return ret;
 }
