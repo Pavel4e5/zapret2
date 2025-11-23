@@ -601,11 +601,6 @@ static int win_main()
 		return ERROR_TOO_MANY_OPEN_FILES; // code 4 = The system cannot open the file
 	}
 
-	if (!lua_init())
-	{
-		res=ERROR_INVALID_PARAMETER; goto ex;
-	}
-
 	if (!win_dark_init(&params.ssid_filter, &params.nlm_filter))
 	{
 		DLOG_ERR("win_dark_init failed. win32 error %u (0x%08X)\n", w_win32_error, w_win32_error);
@@ -634,6 +629,13 @@ static int win_main()
 		if (!windivert_init(params.windivert_filter) || !win_irreversible_sandbox_if_possible())
 		{
 			res=w_win32_error; goto ex;
+		}
+
+
+		// init LUA only here because of possible sandbox. no LUA code with high privs
+		if (!params.L && !lua_init())
+		{
+			res=ERROR_INVALID_PARAMETER; goto ex;
 		}
 
 		DLOG_CONDUP("windivert initialized. capture is started.\n");
