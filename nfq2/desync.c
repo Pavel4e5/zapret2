@@ -1201,7 +1201,7 @@ static uint8_t dpi_desync_tcp_packet_play(unsigned int replay_piece, unsigned in
 			if (l7proto == L7_UNKNOWN)
 			{
 				l7proto = L7_TLS;
-				if (ctrack) ctrack->l7proto = l7proto;
+				if (ctrack->l7proto == L7_UNKNOWN) ctrack->l7proto = l7proto;
 			}
 
 			if (bReqFull) TLSDebug(rdata_payload, rlen_payload);
@@ -1254,6 +1254,7 @@ static uint8_t dpi_desync_tcp_packet_play(unsigned int replay_piece, unsigned in
 		}
 		else if (ctrack && (ctrack->seq_last - ctrack->seq0)==1 && IsMTProto(dis->data_payload, dis->len_payload))
 		{
+			DLOG("packet contains telegram mtproto2 initial\n");
 			// mtproto detection requires aes. react only on the first tcp data packet. do not detect if ctrack unavailable.
 			l7payload = L7P_MTPROTO_INITIAL;
 			if (l7proto == L7_UNKNOWN)

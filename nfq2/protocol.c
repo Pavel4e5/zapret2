@@ -1151,7 +1151,7 @@ bool QUICDecryptInitial(const uint8_t *data, size_t data_len, uint8_t *clean, si
 	pn_offset += tvb_get_varint(data + pn_offset, &payload_len);
 	if (payload_len<20 || (pn_offset + payload_len)>data_len) return false;
 
-	gcm_initialize(); // initialize aes keygen tables
+	aes_init_keygen_tables();
 
 	uint8_t sample_enc[16];
 	aes_context ctx;
@@ -1394,13 +1394,8 @@ bool IsMTProto(const uint8_t *data, size_t len)
 {
 	if (len>=64)
 	{
-		aes_context ctx;
-		uint8_t dcopy[64];
-
-		aes_init_keygen_tables();
-		memcpy(dcopy,data,sizeof(dcopy));
-		aes_setkey(&ctx, true, data+8, 32);
-		aes_ctr_xcrypt_buffer(&ctx, data+40, dcopy, sizeof(dcopy));
-		return !memcmp(dcopy+56,"\xEF\xEF\xEF\xEF",4);
+		uint8_t decrypt[64];
+		aes_ctr_crypt(data+8, 32, data+40, data, 64, decrypt);
+		return !memcmp(decrypt+56,"\xEF\xEF\xEF\xEF",4);
 	}
 }

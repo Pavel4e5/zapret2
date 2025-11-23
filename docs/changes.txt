@@ -1,0 +1,13 @@
+v0.1.0
+
+first public release
+
+v0.1.1
+
+* nfqws2: fixed crash on 32-bit platforms if debug is enabled
+
+v0.1.2
+
+* nfqws2: 'mtproto' protocol, 'mtproto_initial' payload
+* nfqws2: 'known' protocol and payload filter
+* nfqws2: 'aes_ctr' luacall

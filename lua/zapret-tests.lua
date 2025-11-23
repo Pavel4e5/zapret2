@@ -18,7 +18,7 @@ end
 
 
 function test_crypto()
-	test_run({test_random, test_aes, test_aes_gcm, test_hkdf, test_hash})
+	test_run({test_random, test_aes, test_aes_gcm, test_aes_ctr, test_hkdf, test_hash})
 end
 
 function test_random()
@@ -187,6 +187,42 @@ function test_aes_gcm()
 	end
 end
 
+function test_aes_ctr()
+	local clear_text="test message "..brandom_az09(math.random(10,50))
+	local iv, key, encrypted, decrypted
+
+	for key_size=16,32,8 do
+		iv = brandom(16)
+		key = brandom(key_size)
+
+		print()
+		print("* aes_ctr test key_size "..tostring(key_size))
+
+		print("clear text: "..clear_text);
+
+		print("* encrypting")
+		encrypted = aes_ctr(key, iv, clear_text)
+		print("encrypted: "..str_or_hex(encrypted))
+
+		print("* decrypting")
+		decrypted = aes_ctr(key, iv, encrypted)
+		print("decrypted: "..str_or_hex(decrypted))
+		print( decrypted==clear_text and "DECRYPT OK" or "DECRYPT ERROR" )
+		test_assert(decrypted==clear_text)
+
+		print("* decrypting with bad key")
+		decrypted = aes_ctr(bu8(u8(string.sub(key,1,1))+1)..string.sub(key,2), iv, encrypted)
+		print("decrypted: "..str_or_hex(decrypted))
+		print( decrypted==clear_text and "DECRYPT OK" or "DECRYPT ERROR" )
+		test_assert(decrypted~=clear_text)
+
+		print("* decrypting with bad iv")
+		decrypted = aes_ctr(key, bu8(u8(string.sub(iv,1,1))+1)..string.sub(iv,2), encrypted)
+		print("decrypted: "..str_or_hex(decrypted))
+		print( decrypted==clear_text and "DECRYPT OK" or "DECRYPT ERROR" )
+		test_assert(decrypted~=clear_text)
+	end
+end
 
 
 function test_ub()

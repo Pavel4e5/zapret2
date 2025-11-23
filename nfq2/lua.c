@@ -446,7 +446,6 @@ static int luacall_aes_gcm(lua_State *L)
 	uint8_t *output = malloc(input_len);
 	if (!output) luaL_error(L, "out of memory");
 
-	gcm_initialize();
 	if (aes_gcm_crypt(bEncrypt, output, input, input_len, key, key_len, iv, iv_len, add, add_len, atag, sizeof(atag)))
 	{
 		lua_pushnil(L);
@@ -460,6 +459,38 @@ static int luacall_aes_gcm(lua_State *L)
 	free(output);
 
 	LUA_STACK_GUARD_RETURN(L,2)
+}
+
+static int luacall_aes_ctr(lua_State *L)
+{
+	// aes_ctr(key, iv, in) returns out
+	lua_check_argc(L,"aes_ctr",3);
+
+	LUA_STACK_GUARD_ENTER(L)
+
+	size_t key_len;
+	const uint8_t *key = (uint8_t*)luaL_checklstring(L,1,&key_len);
+	if (key_len!=16 && key_len!=24 && key_len!=32)
+		luaL_error(L, "aes_ctr: wrong key length %u. should be 16,24,32.", (unsigned)key_len);
+
+	size_t iv_len;
+	const uint8_t *iv = (uint8_t*)luaL_checklstring(L,2,&iv_len);
+	if (iv_len!=16)
+		luaL_error(L, "aes_ctr: wrong iv length %u. should be 16.", (unsigned)iv_len);
+
+	size_t input_len;
+	const uint8_t *input = (uint8_t*)luaL_checklstring(L,3,&input_len);
+
+	uint8_t *output = malloc(input_len);
+	if (!output) luaL_error(L, "out of memory");
+
+	if (aes_ctr_crypt(key, key_len, iv, input, input_len, output))
+		lua_pushnil(L);
+	else
+		lua_pushlstring(L,(const char*)output,input_len);
+	free(output);
+
+	LUA_STACK_GUARD_RETURN(L,1)
 }
 
 static int luacall_hkdf(lua_State *L)
@@ -2553,6 +2584,7 @@ static void lua_init_functions(void)
 		{"hash",luacall_hash},
 		{"aes",luacall_aes},
 		{"aes_gcm",luacall_aes_gcm},
+		{"aes_ctr",luacall_aes_ctr},
 		{"hkdf",luacall_hkdf},
 
 		// parsing
