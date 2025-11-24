@@ -733,13 +733,12 @@ static bool prepare_low_appdata()
 static bool b_isandbox_set = false;
 bool win_sandbox(void)
 {
-
-	if (!RemoveTokenPrivs())
-		return FALSE;
-
 	// there's no way to return privs
 	if (!b_isandbox_set)
 	{
+		if (!RemoveTokenPrivs())
+			return FALSE;
+
 		// set low mandatory label on windivert device to allow administrators with low label access the driver
 		if (logical_net_filter_present() && !SetMandatoryLabelFile("\\\\.\\" WINDIVERT_DEVICE_NAME, SECURITY_MANDATORY_LOW_RID, 0))
 			return FALSE;

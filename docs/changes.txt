@@ -14,7 +14,7 @@ v0.1.2
 * zapret-antidpi: rst
 * github actions: remove FFI from luajit
 
-v0.1.3
+v0.1.4
 
 * winws2: set low mandatory level in process token if possible : no --wlan-filter or --nlm-filter (no windivert reinit required)
 * nfqws2: optimize debug logging to file
