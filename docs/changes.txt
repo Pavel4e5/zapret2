@@ -18,3 +18,8 @@ v0.1.4
 
 * winws2: set low mandatory level in process token if possible : no --wlan-filter or --nlm-filter (no windivert reinit required)
 * nfqws2: optimize debug logging to file
+
+v0.1.5
+
+* nfqws2: # and % arg substitution
+* zapret-antidpi: luaexec
