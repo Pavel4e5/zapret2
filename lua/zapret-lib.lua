@@ -3,6 +3,41 @@ NOT3=bitnot(3)
 NOT7=bitnot(7)
 math.randomseed(os.time())
 
+
+-- basic desync function
+-- execute given lua code. "desync" is temporary set as global var to be accessible to the code
+-- useful for simple fast actions without writing a func
+-- arg: code=<lua_code>
+function luaexec(ctx, desync)
+	if not desync.arg.code then
+		error("luaexec: no 'code' parameter")
+	end
+	local fname = desync.func_instance.."_luaexec_code"
+	if not _G[fname] then
+		_G[fname] = load(desync.arg.code, fname)
+	end
+	-- allow dynamic code to access desync
+	_G.desync = desync
+	_G[fname]()
+	_G.desync = nil
+end
+
+-- basic desync function
+-- does nothing just acknowledges when it's called
+-- no args
+function pass(ctx, desync)
+	DLOG("pass")
+end
+
+-- basic desync function
+-- prints desync to DLOG
+function pktdebug(ctx, desync)
+	DLOG("desync:")
+	var_debug(desync)
+end
+
+
+
 -- prepare standard rawsend options from desync
 -- repeats - how many time send the packet
 -- ifout - override outbound interface (if --bind_fix4, --bind-fix6 enabled)
