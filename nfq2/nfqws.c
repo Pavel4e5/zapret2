@@ -1033,7 +1033,7 @@ bool lua_call_param_add(char *opt, struct ptr_list_head *args)
 struct func_list *parse_lua_call(char *opt, struct func_list_head *flist)
 {
 	char *name, *e, *p, c;
-	bool b;
+	bool b,last;
 	struct func_list *f = NULL;
 
 	if (!(name = item_name(&opt)))
@@ -1044,14 +1044,18 @@ struct func_list *parse_lua_call(char *opt, struct func_list_head *flist)
 
 	for (p = opt; p && *p; )
 	{
-		if ((e = strchr(p, ':')))
+		for(e=p; *e && *e!=':'; e++)
 		{
-			c = *e;
-			*e = 0;
+			if (e[0]=='\\' && e[1]==':')
+				memmove(e,e+1,strlen(e)); // swallow escape symbol
 		}
 
+		last = !*e;
+		c = *e;
+		*e = 0;
+
 		b = lua_call_param_add(p, &f->args);
-		if (e) *e++ = c;
+		if (!last) *e++ = c;
 		if (!b) goto err;
 
 		p = e;
@@ -1166,7 +1170,7 @@ static void LuaDesyncDebug(struct desync_profile *dp)
 			LIST_FOREACH(arg, &func->args, next)
 			{
 				if (n) DLOG(",");
-				DLOG(arg->ptr2 ? "%s=\"%s\"" : "%s=nil", (char*)arg->ptr1, (char*)arg->ptr2);
+				DLOG(arg->ptr2 ? "%s=\"%s\"" : "%s=\"\"", (char*)arg->ptr1, (char*)arg->ptr2);
 				n++;
 			}
 			DLOG(" range_in=%c%u%c%c%u range_out=%c%u%c%c%u payload_type=",
