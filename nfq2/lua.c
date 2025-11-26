@@ -1,6 +1,13 @@
 #include <time.h>
 #include <fcntl.h>
 #include <sys/utsname.h>
+#include <unistd.h>
+#ifdef __FreeBSD__
+#include <sys/thr.h>
+#endif
+#ifdef __linux__
+#include <sys/syscall.h>
+#endif
 
 #include "lua.h"
 #include "params.h"
@@ -547,6 +554,31 @@ static int luacall_hkdf(lua_State *L)
 }
 
 
+static int luacall_getpid(lua_State *L)
+{
+	lua_check_argc(L,"getpid", 0);
+	lua_pushinteger(L, getpid());
+	return 1;
+}
+static int luacall_gettid(lua_State *L)
+{
+	lua_check_argc(L,"gettid", 0);
+#ifdef __OpenBSD__
+	lua_pushinteger(L, getthrid());
+#elif defined( __FreeBSD__)
+	long tid;
+	if (thr_self(&tid))
+		lua_pushnil(L);
+	else
+		lua_pushinteger(L, tid);
+#elif defined(__linux__)
+	lua_pushinteger(L, syscall(SYS_gettid));
+#else
+	// unsupported OS ?
+	lua_pushnil(L);
+#endif
+	return 1;
+}
 static int luacall_uname(lua_State *L)
 {
 	lua_check_argc(L,"uname", 0);
@@ -554,7 +586,6 @@ static int luacall_uname(lua_State *L)
 	LUA_STACK_GUARD_ENTER(L)
 
 	struct utsname udata;
-
 	if (uname(&udata))
 		lua_pushnil(L);
 	else
@@ -2802,8 +2833,12 @@ static void lua_init_functions(void)
 		{"instance_cutoff",luacall_instance_cutoff},
 		// get raw packet data
 		{"raw_packet",luacall_raw_packet},
+
+		// system functions
 		{"uname",luacall_uname},
 		{"clock_gettime",luacall_clock_gettime},
+		{"getpid",luacall_getpid},
+		{"gettid",luacall_gettid},
 
 		// convert table representation to blob or vise versa
 		{"reconstruct_tcphdr",luacall_reconstruct_tcphdr},
