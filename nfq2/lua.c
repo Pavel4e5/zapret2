@@ -188,6 +188,26 @@ static int luacall_u32(lua_State *L)
 	lua_pushinteger(L,pntoh32(p+offset));
 	return 1;
 }
+static int luacall_swap16(lua_State *L)
+{
+	lua_check_argc(L,"swap16",1);
+
+	lua_Integer i = luaL_checkinteger(L,1);
+	uint16_t u = (uint16_t)i;
+	if (i!=u) luaL_error(L, "out of range");
+	lua_pushinteger(L,__builtin_bswap16(u));
+	return 1;
+}
+static int luacall_swap32(lua_State *L)
+{
+	lua_check_argc(L,"swap32",1);
+
+	lua_Integer i = luaL_checkinteger(L,1);
+	uint32_t u = (uint32_t)i;
+	if (i!=u) luaL_error(L, "out of range");
+	lua_pushinteger(L,__builtin_bswap32(u));
+	return 1;
+}
 static int luacall_bu8(lua_State *L)
 {
 	lua_check_argc(L,"bu8",1);
@@ -548,7 +568,25 @@ static int luacall_uname(lua_State *L)
 	}
 	LUA_STACK_GUARD_RETURN(L,1)
 }
+static int luacall_clock_gettime(lua_State *L)
+{
+	lua_check_argc(L,"uname", 0);
 
+	LUA_STACK_GUARD_ENTER(L)
+
+	struct timespec ts;
+	if (clock_gettime(CLOCK_REALTIME, &ts))
+	{
+		lua_pushnil(L);
+		lua_pushnil(L);
+	}
+	else
+	{
+		lua_pushinteger(L, ts.tv_sec);
+		lua_pushinteger(L, ts.tv_nsec);
+	}
+	LUA_STACK_GUARD_RETURN(L,2)
+}
 static int luacall_instance_cutoff(lua_State *L)
 {
 	// out : func_name.profile_number[0]
@@ -2729,11 +2767,14 @@ static void lua_init_functions(void)
 		{"u16",luacall_u16},
 		{"u24",luacall_u24},
 		{"u32",luacall_u32},
-		// convert number to blob (string)
+		// convert number to blob (string) - big endian
 		{"bu8",luacall_bu8},
 		{"bu16",luacall_bu16},
 		{"bu24",luacall_bu24},
 		{"bu32",luacall_bu32},
+		// swap byte order
+		{"swap16",luacall_swap16},
+		{"swap32",luacall_swap32},
 
 		// integer division
 		{"divint",luacall_divint},
@@ -2762,6 +2803,7 @@ static void lua_init_functions(void)
 		// get raw packet data
 		{"raw_packet",luacall_raw_packet},
 		{"uname",luacall_uname},
+		{"clock_gettime",luacall_clock_gettime},
 
 		// convert table representation to blob or vise versa
 		{"reconstruct_tcphdr",luacall_reconstruct_tcphdr},

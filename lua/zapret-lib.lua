@@ -877,6 +877,20 @@ function genhost(len, template)
 	end
 end
 
+function is_absolute_path(path)
+	if string.sub(path,1,1)=='/' then return true end
+	local un = uname()
+	return string.sub(un.sysname,1,6)=="CYGWIN" and string.sub(path,2,2)==':'
+end
+function append_path(path,file)
+	return string.sub(path,#path,#path)=='/' and path..file or path.."/"..file
+end
+function writeable_file_name(filename)
+	if is_absolute_path(filename) then return filename end
+	local writedir = os.getenv("WRITEABLE")
+	if not writedir then return filename end
+	return append_path(writedir, filename)
+end
 
 -- arg : wsize=N . tcp window size
 -- arg : scale=N . tcp option scale factor
