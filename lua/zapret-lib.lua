@@ -747,17 +747,17 @@ function rawsend_dissect_segmented(desync, dis, mss, options)
 	apply_fooling(desync, discopy, options and options.fooling)
 
 	if dis.tcp then
-		local extra_len = l3l4_extra_len(dis)
+		local extra_len = l3l4_extra_len(discopy)
 		if extra_len >= mss then return false end
 		local max_data = mss - extra_len
 		if #discopy.payload > max_data then
 			local pos=1
 			local len
 
-			while pos <= #dis.payload do
-				len = #dis.payload - pos + 1
+			while pos <= #discopy.payload do
+				len = #discopy.payload - pos + 1
 				if len > max_data then len = max_data end
-				discopy.payload = string.sub(dis.payload,pos,pos+len-1)
+				discopy.payload = string.sub(discopy.payload,pos,pos+len-1)
 				if not rawsend_dissect_ipfrag(discopy, options) then
 					-- stop if failed
 					return false
