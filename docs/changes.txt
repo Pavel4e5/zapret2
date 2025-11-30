@@ -24,3 +24,13 @@ v0.1.5
 * nfqws2: # and % arg substitution
 * zapret-antidpi: luaexec
 * zapret-pcap: simple packet capture to .cap file
+
+v0.2
+
+* blockcheck2
+* nfqws2: several crash fixes
+* nfqws2: bu8,bu16,bu24,bu32,swap16,swap32 functions now work with negative int
+* nfqws2: getpid,gettid,uname,get_clock luacalls
+* zapret-lib: bugfixes
+* zapret-lib: remove ip6_hopbyhop_x2 fooling, separately add second hopbyhop header using ip6_hopbyhop2
+* zapret-pcap
