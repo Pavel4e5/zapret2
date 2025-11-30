@@ -605,7 +605,7 @@ static int luacall_uname(lua_State *L)
 }
 static int luacall_clock_gettime(lua_State *L)
 {
-	lua_check_argc(L,"uname", 0);
+	lua_check_argc(L,"clock_gettime", 0);
 
 	LUA_STACK_GUARD_ENTER(L)
 
