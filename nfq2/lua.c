@@ -203,7 +203,8 @@ static int luacall_swap16(lua_State *L)
 	lua_Integer i = luaL_checkinteger(L,1);
 	if (i>0xFFFF || i<-(lua_Integer)0xFFFF) luaL_error(L, "out of range");
 	uint16_t u = (uint16_t)i;
-	lua_pushinteger(L,__builtin_bswap16(u));
+	// __builtin_bswap16 is absent in ancient lexra gcc 4.6
+	lua_pushinteger(L,(u>>8) | ((u&0xFF)<<8));
 	return 1;
 }
 static int luacall_swap32(lua_State *L)
