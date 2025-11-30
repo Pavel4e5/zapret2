@@ -748,7 +748,7 @@ bool TLSMod(const struct fake_tls_mod *tls_mod, const uint8_t *payload, size_t p
 			char *s1 = NULL;
 			if (params.debug)
 				if ((s1 = malloc(slen + 1)))
-					memcpy(s1, sni, slen); s1[slen] = 0;
+					{memcpy(s1, sni, slen); s1[slen] = 0;}
 			if (slen_delta)
 			{
 				if ((*fake_tls_size + slen_delta) > fake_tls_buf_size)
