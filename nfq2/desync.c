@@ -638,10 +638,6 @@ err:
 	lua_pop(params.L, rescount);
 	return false;
 }
-static void desync_instance(const char *func, unsigned int dp_n, unsigned int func_n, char *instance, size_t inst_size)
-{
-	snprintf(instance, inst_size, "%s_%u_%u", func, dp_n, func_n);
-}
 static uint8_t desync(
 	struct desync_profile *dp,
 	uint32_t fwmark,
@@ -659,7 +655,7 @@ static uint8_t desync(
 	struct func_list *func;
 	int ref_arg = LUA_NOREF, status;
 	bool b, b_cutoff_all, b_unwanted_payload;
-	t_lua_desync_context ctx = { .dp = dp, .ctrack = ctrack, .dis = dis };
+	t_lua_desync_context ctx = { .dp = dp, .ctrack = ctrack, .dis = dis, .cancel = false };
 	const char *sDirection = bIncoming ? "in" : "out";
 	struct packet_range *range;
 	size_t l;
@@ -681,14 +677,12 @@ static uint8_t desync(
 	}
 	if (LIST_FIRST(&dp->lua_desync))
 	{
-		unsigned int func_n;
-
 		b_cutoff_all = b_unwanted_payload = true;
-		func_n = 1;
+		ctx.func_n = 1;
 		LIST_FOREACH(func, &dp->lua_desync, next)
 		{
 			ctx.func = func->func;
-			desync_instance(func->func, dp->n, func_n, instance, sizeof(instance));
+			desync_instance(func->func, dp->n, ctx.func_n, instance, sizeof(instance));
 			ctx.instance = instance;
 			range = bIncoming ? &func->range_in : &func->range_out;
 
@@ -713,7 +707,7 @@ static uint8_t desync(
 				else
 					b_cutoff_all = false;
 			}
-			func_n++;
+			ctx.func_n++;
 		}
 		if (b_cutoff_all)
 		{
@@ -755,11 +749,11 @@ static uint8_t desync(
 			}
 			ref_arg = luaL_ref(params.L, LUA_REGISTRYINDEX);
 
-			func_n = 1;
+			ctx.func_n = 1;
 			LIST_FOREACH(func, &dp->lua_desync, next)
 			{
 				ctx.func = func->func;
-				desync_instance(func->func, dp->n, func_n, instance, sizeof(instance));
+				desync_instance(func->func, dp->n, ctx.func_n, instance, sizeof(instance));
 				ctx.instance = instance;
 
 				if (!lua_instance_cutoff_check(&ctx, bIncoming))
@@ -789,7 +783,7 @@ static uint8_t desync(
 							lua_rawgeti(params.L, LUA_REGISTRYINDEX, ref_arg);
 							lua_pushf_args(&func->args, -1);
 							lua_pushf_str("func", func->func);
-							lua_pushf_int("func_n", func_n);
+							lua_pushf_int("func_n", ctx.func_n);
 							lua_pushf_str("func_instance", instance);
 							int initial_stack_top = lua_gettop(params.L);
 							status = lua_pcall(params.L, 2, LUA_MULTRET, 0);
@@ -808,37 +802,6 @@ static uint8_t desync(
 							case VERDICT_DROP:
 								verdict = VERDICT_DROP;
 							}
-
-							if (ctrack)
-							{
-								// lua cutoff
-								lua_rawgeti(params.L, LUA_REGISTRYINDEX, ref_arg);
-								lua_getfield(params.L, -1, "track");
-								if (lua_istable(params.L, -1))
-								{
-									if (!ctrack->b_lua_in_cutoff)
-									{
-										lua_getfield(params.L, -1, "lua_in_cutoff");
-										if (lua_toboolean(params.L, -1))
-										{
-											ctrack->b_lua_in_cutoff = true;
-											DLOG("* lua in cutoff set\n");
-										}
-										lua_pop(params.L, 1);
-									}
-									if (!ctrack->b_lua_out_cutoff)
-									{
-										lua_getfield(params.L, -1, "lua_out_cutoff");
-										if (lua_toboolean(params.L, -1))
-										{
-											ctrack->b_lua_out_cutoff = true;
-											DLOG("* lua out cutoff set\n");
-										}
-										lua_pop(params.L, 1);
-									}
-								}
-								lua_pop(params.L, 2);
-							}
 						}
 						else
 							DLOG("* lua '%s' : payload_type '%s' does not satisfy filter\n", instance, l7payload_str(l7payload));
@@ -852,7 +815,8 @@ static uint8_t desync(
 							range->upper_cutoff ? '<' : '-',
 							range->to.mode, range->to.pos);
 				}
-				func_n++;
+				if (ctx.cancel) break;
+				ctx.func_n++;
 			}
 		}
 

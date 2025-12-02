@@ -28,6 +28,9 @@
 #define LUA_STACK_GUARD_RETURN(L,N) LUA_STACK_GUARD_LEAVE(L,N); return N;
 
 
+void desync_instance(const char *func, unsigned int dp_n, unsigned int func_n, char *instance, size_t inst_size);
+
+
 bool lua_test_init_script_files(void);
 bool lua_init(void);
 void lua_shutdown(void);
@@ -79,10 +82,12 @@ bool lua_reconstruct_udphdr(int idx, struct udphdr *udp);
 bool lua_reconstruct_dissect(int idx, uint8_t *buf, size_t *len, bool badsum, bool ip6_preserve_next);
 
 typedef struct {
+	unsigned int func_n;
 	const char *func, *instance;
 	const struct desync_profile *dp;
-	const t_ctrack *ctrack;
 	const struct dissect *dis;
+	t_ctrack *ctrack;
+	bool cancel;
 } t_lua_desync_context;
 
 bool lua_instance_cutoff_check(const t_lua_desync_context *ctx, bool bIn);

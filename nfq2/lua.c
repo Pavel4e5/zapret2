@@ -19,6 +19,11 @@
 #include "crypto/aes-ctr.h"
 
 
+void desync_instance(const char *func, unsigned int dp_n, unsigned int func_n, char *instance, size_t inst_size)
+{
+	snprintf(instance, inst_size, "%s_%u_%u", func, dp_n, func_n);
+}
+
 static void lua_check_argc(lua_State *L, const char *where, int argc)
 {
 	int num_args = lua_gettop(L);
@@ -639,7 +644,7 @@ static int luacall_instance_cutoff(lua_State *L)
 
 	int argc=lua_gettop(L);
 	bool bIn,bOut;
-	if (argc>=2)
+	if (argc>=2 && lua_type(L,2)!=LUA_TNIL)
 	{
 		luaL_checktype(L,2,LUA_TBOOLEAN);
 		bOut = lua_toboolean(L,2);
@@ -704,6 +709,94 @@ bool lua_instance_cutoff_check(const t_lua_desync_context *ctx, bool bIn)
 	}
 	return b;
 }
+
+static int luacall_lua_cutoff(lua_State *L)
+{
+	lua_check_argc_range(L,"lua_cutoff",1,2);
+
+	LUA_STACK_GUARD_ENTER(L)
+
+	t_lua_desync_context *ctx;
+
+	if (!lua_islightuserdata(L,1))
+		luaL_error(L, "lua_cutoff expect desync context in the first argument");
+	ctx = lua_touserdata(L,1);
+
+	int argc=lua_gettop(L);
+	bool bIn,bOut;
+	if (argc>=2 && lua_type(L,2)!=LUA_TNIL)
+	{
+		luaL_checktype(L,2,LUA_TBOOLEAN);
+		bOut = lua_toboolean(L,2);
+		bIn = !bOut;
+	}
+	else
+		bIn = bOut = true;
+
+	if (ctx->ctrack)
+	{
+		DLOG("lua cutoff from '%s' in=%u out=%u\n",ctx->instance,bIn,bOut);
+		// lua cutoff is one way transition
+		if (bIn) ctx->ctrack->b_lua_in_cutoff = true;
+		if (bOut) ctx->ctrack->b_lua_out_cutoff = true;
+	}
+	else
+		DLOG("lua cutoff requested from '%s' in=%u out=%u but not possible without conntrack\n",ctx->instance,bIn,bOut);
+
+	LUA_STACK_GUARD_RETURN(L,0)
+}
+
+static int luacall_execution_plan(lua_State *L)
+{
+	lua_check_argc(L,"execution_plan",1);
+
+	LUA_STACK_GUARD_ENTER(L)
+
+	const t_lua_desync_context *ctx;
+
+	if (!lua_islightuserdata(L,1))
+		luaL_error(L, "execution_plan expect desync context in the first argument");
+	ctx = lua_touserdata(L,1);
+
+	lua_newtable(L);
+
+	struct func_list *func;
+	char instance[256];
+	unsigned int n=1;
+	LIST_FOREACH(func, &ctx->dp->lua_desync, next)
+	{
+		if (n > ctx->func_n)
+		{
+			desync_instance(func->func, ctx->dp->n, n, instance, sizeof(instance));
+			lua_pushinteger(params.L, n - ctx->func_n);
+			lua_createtable(params.L, 0, 4);
+			lua_pushf_str("func", func->func);
+			lua_pushf_int("func_n", ctx->func_n);
+			lua_pushf_str("func_instance", instance);
+			lua_pushf_args(&func->args, -1);
+			lua_rawset(params.L,-3);
+		}
+		n++;
+	}
+
+	LUA_STACK_GUARD_RETURN(L,1)
+}
+static int luacall_execution_plan_cancel(lua_State *L)
+{
+	lua_check_argc(L,"execution_plan_cancel",1);
+
+	t_lua_desync_context *ctx;
+
+	if (!lua_islightuserdata(L,1))
+		luaL_error(L, "execution_plan_cancel expect desync context in the first argument");
+	ctx = lua_touserdata(L,1);
+
+	DLOG("execution plan cancel from '%s'\n",ctx->instance);
+
+	ctx->cancel = true;
+	return 0;
+}
+
 
 static int luacall_raw_packet(lua_State *L)
 {
@@ -2836,6 +2929,12 @@ static void lua_init_functions(void)
 
 		// voluntarily stop receiving packets
 		{"instance_cutoff",luacall_instance_cutoff},
+		// voluntarily stop receiving packets of the current connection for all instances
+		{"lua_cutoff",luacall_lua_cutoff},
+		// get info about upcoming desync instances and their arguments
+		{"execution_plan",luacall_execution_plan},
+		// cancel execution of upcoming desync instances and their arguments
+		{"execution_plan_cancel",luacall_execution_plan_cancel},
 		// get raw packet data
 		{"raw_packet",luacall_raw_packet},
 

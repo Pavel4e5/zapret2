@@ -37,6 +37,29 @@ function pktdebug(ctx, desync)
 end
 
 
+-- copy instance identification and args from execution plan to desync table
+function apply_execution_plan(desync, plan)
+	desync.func = plan.func
+	desync.func_n = plan.func_n
+	desync.func_instance = plan.func_instance
+	desync.arg = plan.arg
+end
+-- this function demonstrates how to stop execution of upcoming desync instances and take over their job
+-- this can be used, for example, for orchestrating conditional processing without modifying of desync functions code
+-- test case : nfqws2 --qnum 200 --debug --lua-init=@zapret-lib.lua --lua-desync=desync_orchestrator_example --lua-desync=pass --lua-desync=pass
+function desync_orchestrator_example(ctx, desync)
+	local plan = execution_plan(ctx)
+	if #plan>0 then
+		DLOG("orchestrator: taking over upcoming desync instances")
+		local desync_copy = deepcopy(desync)
+		execution_plan_cancel(ctx)
+		for i=1,#plan do
+			apply_execution_plan(desync_copy, plan[i])
+			DLOG("orchestrator: executing '"..desync_copy.func_instance.."'")
+			_G[plan[i].func](ctx, desync_copy)
+		end
+	end
+end
 
 -- prepare standard rawsend options from desync
 -- repeats - how many time send the packet
@@ -1031,4 +1054,3 @@ function ipfrag2(dis, ipfrag_options)
 
 	return {dis1,dis2}
 end
-
