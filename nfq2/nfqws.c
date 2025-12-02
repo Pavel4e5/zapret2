@@ -2566,7 +2566,7 @@ int main(int argc, char **argv)
 				exit_clean(1);
 #endif
 			print_id();
-			if (!test_list_files())
+			if (!test_list_files() || !lua_test_init_script_files())
 				exit_clean(1);
 		}
 #endif
