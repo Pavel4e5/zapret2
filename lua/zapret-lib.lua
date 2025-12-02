@@ -44,6 +44,20 @@ function apply_execution_plan(desync, plan)
 	desync.func_instance = plan.func_instance
 	desync.arg = plan.arg
 end
+-- redo what whould be done without orcestration
+function replay_execution_plan(desync, plan)
+	for i=1,#plan do
+		if not payload_match_filter(desync.l7payload, plan[i].payload_filter) then
+			DLOG("orchestrator: not calling '"..desync.func_instance.."' because payload '"..desync.l7payload.."' does not match filter '"..plan[i].payload_filter.."'")
+		elseif not pos_check_range(desync, plan[i].range) then
+			DLOG("orchestrator: not calling '"..desync.func_instance.."' because pos "..pos_str(desync,plan[i].range.from).." "..pos_str(desync,plan[i].range.to).." is out of range '"..pos_range_str(plan[i].range).."'")
+		else
+			apply_execution_plan(desync, plan[i])
+			DLOG("orchestrator: executing '"..desync.func_instance.."'")
+			_G[plan[i].func](ctx, desync)
+		end
+	end
+end
 -- this function demonstrates how to stop execution of upcoming desync instances and take over their job
 -- this can be used, for example, for orchestrating conditional processing without modifying of desync functions code
 -- test case : nfqws2 --qnum 200 --debug --lua-init=@zapret-lib.lua --lua-desync=desync_orchestrator_example --lua-desync=pass --lua-desync=pass
@@ -53,17 +67,7 @@ function desync_orchestrator_example(ctx, desync)
 		DLOG("orchestrator: taking over upcoming desync instances")
 		local desync_copy = deepcopy(desync)
 		execution_plan_cancel(ctx)
-		for i=1,#plan do
-			if not payload_match_filter(desync.l7payload, plan[i].payload_filter) then
-				DLOG("orchestrator: not calling '"..desync_copy.func_instance.."' because payload '"..desync.l7payload.."' does not match filter '"..plan[i].payload_filter.."'")
-			elseif not pos_check_range(desync, plan[i].range) then
-				DLOG("orchestrator: not calling '"..desync_copy.func_instance.."' because pos "..pos_str(desync,plan[i].range.from).." "..pos_str(desync,plan[i].range.to).." is out of range '"..pos_range_str(plan[i].range).."'")
-			else
-				apply_execution_plan(desync_copy, plan[i])
-				DLOG("orchestrator: executing '"..desync_copy.func_instance.."'")
-				_G[plan[i].func](ctx, desync_copy)
-			end
-		end
+		replay_execution_plan(desync_copy, plan)
 	end
 end
 
