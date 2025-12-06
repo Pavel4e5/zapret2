@@ -275,8 +275,8 @@ function test_bit()
 
 	v2 = bitlshift(v, b1)
 	pow = 2^b1
-	v3 = v * pow
-	print(string.format("lshift(0x%X,%u) = 0x%X  0x%X*%u = 0x%X", v,b1,v2, v,pow,v3))
+	v3 = (v * pow) % 0x100000000
+	print(string.format("lshift(0x%X,%u) = 0x%X  0x%X*%u %% 0x10000000 = 0x%X", v,b1,v2, v,pow,v3))
 	test_assert(v2==v3)
 
 	v2 = math.random(0,0xFFFFFFFF)

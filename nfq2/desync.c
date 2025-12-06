@@ -737,7 +737,7 @@ static uint8_t desync(
 			lua_pushf_bool("outgoing", !bIncoming);
 			lua_pushf_str("ifin", (ifin && *ifin) ? ifin : NULL);
 			lua_pushf_str("ifout", (ifout && *ifout) ? ifout : NULL);
-			lua_pushf_int("fwmark", fwmark);
+			lua_pushf_lint("fwmark", fwmark);
 			lua_pushf_table("target");
 			lua_getfield(params.L,-1,"target");
 			if (sdport) lua_pushf_int("port",sdport);

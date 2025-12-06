@@ -22,6 +22,17 @@
 #define LUA_UNSIGNED uint64_t
 #endif
 
+// in old lua integer is 32 bit on 32 bit platforms and 64 bit on 64 bit platforms
+#if LUA_VERSION_NUM < 503 && __SIZEOF_POINTER__==4
+#define lua_pushlint lua_pushnumber
+#define lua_tolint lua_tonumber
+#define luaL_checklint luaL_checknumber
+#else
+#define lua_pushlint lua_pushinteger
+#define luaL_checklint luaL_checkinteger
+#define lua_tolint lua_tointeger
+#endif
+
 // pushing and not popping inside luacall cause memory leak
 #define LUA_STACK_GUARD_ENTER(L) int _lsg=lua_gettop(L);
 #define LUA_STACK_GUARD_LEAVE(L,N) if ((_lsg+N)!=lua_gettop(L)) luaL_error(L,"stack guard failure");
@@ -55,6 +66,8 @@ void lua_pushf_lstr(const char *field, const char *str, size_t len);
 void lua_pushi_lstr(lua_Integer idx, const char *str, size_t len);
 void lua_pushf_int(const char *field, lua_Integer v);
 void lua_pushi_int(lua_Integer idx, lua_Integer v);
+void lua_pushf_lint(const char *field, int64_t v);
+void lua_pushi_lint(lua_Integer idx, int64_t v);
 void lua_push_raw(const void *v, size_t l);
 void lua_pushf_raw(const char *field, const void *v, size_t l);
 void lua_pushi_raw(lua_Integer idx, const void *v, size_t l);
