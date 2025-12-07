@@ -127,7 +127,7 @@ bool TLSHelloExtractHostFromHandshake(const uint8_t *data, size_t len, char *hos
 
 struct fake_tls_mod
 {
-	char sni[128];
+	char sni[256];
 	uint32_t mod;
 };
 #define FAKE_TLS_MOD_RND		0x01
