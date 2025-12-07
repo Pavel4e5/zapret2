@@ -201,7 +201,6 @@ function circular(ctx, desync)
 	local retrans = tonumber(desync.arg.retrans) or 3
 	local fails = tonumber(desync.arg.fails) or 3
 	local maxtime = tonumber(desync.arg.time) or 60
-	local crec = automate_conn_record(desync)
 	local failure_detector
 	if desync.arg.detector then
 		if type(_G[desync.arg.detector])~="function" then
@@ -219,6 +218,7 @@ function circular(ctx, desync)
 
 	local verdict = VERDICT_PASS
 	if hrec.final~=hrec.nstrategy then
+		local crec = automate_conn_record(desync)
 		if failure_detector(desync,crec,{retrans=retrans,maxseq=maxseq,seq_rst=seq_rst}) then
 			if automate_failure_counter(hrec, crec, fails, maxtime) then
 				-- circular strategy change
