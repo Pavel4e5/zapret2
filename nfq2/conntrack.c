@@ -406,13 +406,13 @@ bool ReasmFeed(t_reassemble *reasm, uint32_t seq, const void *payload, size_t le
 
 	size_t szcopy, szignore;
 	szignore = (neg_overlap > reasm->size_present) ? neg_overlap - reasm->size_present : 0;
-	szcopy = reasm->size - reasm->size_present;
-	if (len < szcopy) szcopy = len;
-	if (szignore>=szcopy) return true; // everyting is before the starting pos
-	szcopy-=szignore;
-	neg_overlap-=szignore;
+	if (szignore>=len) return true; // everyting is before the starting pos
+	szcopy = len - szignore;
+	neg_overlap -= szignore;
+	if ((reasm->size_present - neg_overlap + szcopy) > reasm->size)
+		return false; // buffer overflow
 	// in case of seq overlap new data replaces old - unix behavior
-	memcpy(reasm->packet + reasm->size_present - neg_overlap, payload+szignore, szcopy);
+	memcpy(reasm->packet + reasm->size_present - neg_overlap, payload + szignore, szcopy);
 	if (szcopy>neg_overlap)
 	{
 		reasm->size_present += szcopy - neg_overlap;
