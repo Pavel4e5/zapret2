@@ -186,7 +186,7 @@ function desync_orchestrator_example(ctx, desync)
 	end
 end
 
--- these function duplicate range check logic from C code
+-- these functions duplicate range check logic from C code
 -- mode must be n,d,b,s,x,a
 -- pos is {mode,pos}
 -- range is {from={mode,pos}, to={mode,pos}, upper_cutoff}
@@ -238,7 +238,9 @@ end
 function pos_str(desync, pos)
 	return pos.mode..pos_get(desync, pos.mode)
 end
-
+function is_retransmission(desync)
+	return desync.track and desync.track.tcp and 0==bitand(u32add(desync.track.tcp.uppos_orig_prev, -desync.track.tcp.pos_orig), 0x80000000)
+end
 
 -- prepare standard rawsend options from desync
 -- repeats - how many time send the packet
@@ -1328,4 +1330,3 @@ function ipfrag2(dis, ipfrag_options)
 
 	return {dis1,dis2}
 end
-

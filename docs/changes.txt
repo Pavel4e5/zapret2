@@ -72,3 +72,5 @@ v0.6
 * zapret-lib,zapret-antidpi: tls_mod_shim supports sni=%var subst
 * blockcheck2: syndata tests
 * nfqws2: reasm support negative overlaps. gaps are not supported.
+* nfqws2,zapret-auto: changed retransmission detection scheme.
+

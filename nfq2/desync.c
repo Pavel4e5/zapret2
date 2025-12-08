@@ -240,6 +240,11 @@ static void auto_hostlist_reset_fail_counter(struct desync_profile *dp, const ch
 	}
 }
 
+static bool is_retransmission(const t_ctrack *ctrack)
+{
+	return !((ctrack->pos.uppos_orig_prev - ctrack->pos.pos_orig) & 0x80000000);
+}
+
 // return true if retrans trigger fires
 static bool auto_hostlist_retrans(t_ctrack *ctrack, uint8_t l4proto, int threshold, const char *client_ip_port, t_l7proto l7proto)
 {
@@ -247,24 +252,28 @@ static bool auto_hostlist_retrans(t_ctrack *ctrack, uint8_t l4proto, int thresho
 	{
 		if (l4proto == IPPROTO_TCP)
 		{
-			if (!ctrack->req_seq_finalized || ctrack->req_seq_abandoned)
+			if (ctrack->retrans_detect_finalized)
 				return false;
-			if (!seq_within(ctrack->pos.seq_last, ctrack->req_seq_start, ctrack->req_seq_end))
+			if (!seq_within(ctrack->pos.seq_last, ctrack->pos.seq0, ctrack->pos.seq0 + ctrack->dp->hostlist_auto_retrans_maxseq))
 			{
-				DLOG("req retrans : tcp seq %u not within the req range %u-%u. stop tracking.\n", ctrack->pos.seq_last, ctrack->req_seq_start, ctrack->req_seq_end);
+				ctrack->retrans_detect_finalized = true;
+				DLOG("retrans : tcp seq %u not within the req range %u-%u. stop tracking.\n", ctrack->pos.seq_last, ctrack->pos.seq0, ctrack->pos.seq0 + ctrack->dp->hostlist_auto_retrans_maxseq);
 				ctrack_stop_retrans_counter(ctrack);
 				auto_hostlist_reset_fail_counter(ctrack->dp, ctrack->hostname, client_ip_port, l7proto);
 				return false;
 			}
+			if (!is_retransmission(ctrack))
+				return false;
 		}
 		ctrack->req_retrans_counter++;
 		if (ctrack->req_retrans_counter >= threshold)
 		{
-			DLOG("req retrans threshold reached : %u/%u\n", ctrack->req_retrans_counter, threshold);
+			DLOG("retrans threshold reached : %u/%u\n", ctrack->req_retrans_counter, threshold);
 			ctrack_stop_retrans_counter(ctrack);
+			ctrack->retrans_detect_finalized = true;
 			return true;
 		}
-		DLOG("req retrans counter : %u/%u\n", ctrack->req_retrans_counter, threshold);
+		DLOG("retrans counter : %u/%u\n", ctrack->req_retrans_counter, threshold);
 	}
 	return false;
 }
@@ -1169,17 +1178,6 @@ static uint8_t dpi_desync_tcp_packet_play(
 				DLOG("not applying tampering to HTTP without Host:\n");
 				goto pass;
 			}
-			if (ctrack)
-			{
-				// we do not reassemble http
-				if (!ctrack->req_seq_present)
-				{
-					ctrack->req_seq_start = ctrack->pos.seq_last;
-					ctrack->req_seq_end = ctrack->pos.pos_orig - 1;
-					ctrack->req_seq_present = ctrack->req_seq_finalized = true;
-					DLOG("req retrans : tcp seq interval %u-%u\n", ctrack->req_seq_start, ctrack->req_seq_end);
-				}
-			}
 		}
 		else if (IsTLSClientHello(rdata_payload, rlen_payload, TLS_PARTIALS_ENABLE))
 		{
@@ -1198,26 +1196,11 @@ static uint8_t dpi_desync_tcp_packet_play(
 			if (ctrack && !(params.reasm_payload_disable && l7_payload_match(l7payload, params.reasm_payload_disable)))
 			{
 				// do not reasm retransmissions
-				if (!bReqFull && ReasmIsEmpty(&ctrack->reasm_orig) && !ctrack->req_seq_abandoned &&
-					!(ctrack->req_seq_finalized && seq_within(ctrack->pos.seq_last, ctrack->req_seq_start, ctrack->req_seq_end)))
+				if (!bReqFull && ReasmIsEmpty(&ctrack->reasm_orig) && !is_retransmission(ctrack))
 				{
 					// do not reconstruct unexpected large payload (they are feeding garbage ?)
 					if (!reasm_orig_start(ctrack, IPPROTO_TCP, TLSRecordLen(dis->data_payload), TCP_MAX_REASM, dis->data_payload, dis->len_payload))
 						goto pass_reasm_cancel;
-				}
-				if (!ctrack->req_seq_finalized)
-				{
-					if (!ctrack->req_seq_present)
-					{
-						// lower bound of request seq interval
-						ctrack->req_seq_start = ctrack->pos.seq_last;
-						ctrack->req_seq_present = true;
-					}
-					// upper bound of request seq interval
-					// it can grow on every packet until request is complete. then interval is finalized and never touched again.
-					ctrack->req_seq_end = ctrack->pos.pos_orig - 1;
-					DLOG("req retrans : seq interval %u-%u\n", ctrack->req_seq_start, ctrack->req_seq_end);
-					ctrack->req_seq_finalized |= bReqFull;
 				}
 
 				if (!ReasmIsEmpty(&ctrack->reasm_orig))
@@ -1258,12 +1241,6 @@ static uint8_t dpi_desync_tcp_packet_play(
 				{L7P_XMPP_STARTTLS,L7_XMPP,IsXMPPStartTLS,false}
 			};
 			protocol_probe(testers, sizeof(testers) / sizeof(*testers), dis->data_payload, dis->len_payload, ctrack, &l7proto, &l7payload);
-		}
-		if (ctrack && ctrack->req_seq_finalized)
-		{
-			uint32_t dseq = ctrack->pos.seq_last - ctrack->req_seq_end;
-			// do not react to 32-bit overflowed sequence numbers. allow 16 Mb grace window then cutoff.
-			if (dseq >= 0x1000000 && !(dseq & 0x80000000)) ctrack->req_seq_abandoned = true;
 		}
 
 		if (bHaveHost)
@@ -1327,7 +1304,6 @@ static uint8_t dpi_desync_tcp_packet_play(
 				DLOG("desync profile changed by revealed l7 protocol or hostname !\n");
 			}
 		}
-
 		if (bHaveHost && !PROFILE_HOSTLISTS_EMPTY(dp))
 		{
 			if (!bCheckDone)

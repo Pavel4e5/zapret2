@@ -1434,6 +1434,7 @@ static void exithelp(void)
 		" --hostlist-auto-fail-threshold=<int>\t\t\t; how many failed attempts cause hostname to be added to auto hostlist (default : %d)\n"
 		" --hostlist-auto-fail-time=<int>\t\t\t; all failed attemps must be within these seconds (default : %d)\n"
 		" --hostlist-auto-retrans-threshold=<int>\t\t; how many request retransmissions cause attempt to fail (default : %d)\n"
+		" --hostlist-auto-retrans-maxseq=<int>\t\t\t; count retransmissions only within this relative sequence (default : %u)\n"
 		" --hostlist-auto-debug=<logfile>\t\t\t; debug auto hostlist positives (global parameter)\n"
 		"\nLUA PACKET PASS MODE:\n"
 		" --payload=type[,type]\t\t\t\t\t; set payload types following LUA functions should process : %s\n"
@@ -1448,7 +1449,8 @@ static void exithelp(void)
 		IPCACHE_LIFETIME,
 		LUA_GC_INTERVAL,
 		all_protos,
-		HOSTLIST_AUTO_FAIL_THRESHOLD_DEFAULT, HOSTLIST_AUTO_FAIL_TIME_DEFAULT, HOSTLIST_AUTO_RETRANS_THRESHOLD_DEFAULT,
+		HOSTLIST_AUTO_FAIL_THRESHOLD_DEFAULT, HOSTLIST_AUTO_FAIL_TIME_DEFAULT,
+		HOSTLIST_AUTO_RETRANS_THRESHOLD_DEFAULT, HOSTLIST_AUTO_RETRANS_MAXSEQ,
 		all_payloads
 	);
 	exit(1);
@@ -1545,6 +1547,7 @@ enum opt_indices {
 	IDX_HOSTLIST_AUTO_FAIL_THRESHOLD,
 	IDX_HOSTLIST_AUTO_FAIL_TIME,
 	IDX_HOSTLIST_AUTO_RETRANS_THRESHOLD,
+	IDX_HOSTLIST_AUTO_RETRANS_MAXSEQ,
 	IDX_HOSTLIST_AUTO_DEBUG,
 	IDX_NEW,
 	IDX_SKIP,
@@ -1629,6 +1632,7 @@ static const struct option long_options[] = {
 	[IDX_HOSTLIST_AUTO_FAIL_THRESHOLD] = {"hostlist-auto-fail-threshold", required_argument, 0, 0},
 	[IDX_HOSTLIST_AUTO_FAIL_TIME] = {"hostlist-auto-fail-time", required_argument, 0, 0},
 	[IDX_HOSTLIST_AUTO_RETRANS_THRESHOLD] = {"hostlist-auto-retrans-threshold", required_argument, 0, 0},
+	[IDX_HOSTLIST_AUTO_RETRANS_MAXSEQ] = {"hostlist-auto-retrans-maxseq", required_argument, 0, 0},
 	[IDX_HOSTLIST_AUTO_DEBUG] = {"hostlist-auto-debug", required_argument, 0, 0},
 	[IDX_NEW] = {"new", no_argument, 0, 0},
 	[IDX_SKIP] = {"skip", no_argument, 0, 0},
@@ -1691,6 +1695,22 @@ static const struct option long_options[] = {
 
 int main(int argc, char **argv)
 {
+/*
+	t_reassemble t;
+	ReasmInit(&t,16,-10);
+	memset(t.packet,0,16);
+	bool b;
+	b=ReasmFeed(&t,-10,"0123456789",10);
+	printf("b=%u size=%zu seq=%d s=%s\n",b,t.size_present,t.seq,t.packet);
+	b=ReasmFeed(&t,0,"YOREK",5);
+	printf("b=%u size=%zu seq=%d s=%s\n",b,t.size_present,t.seq,t.packet);
+	b=ReasmFeed(&t,-12,"XOR",3);
+	printf("b=%u size=%zu seq=%d s=%s\n",b,t.size_present,t.seq,t.packet);
+	b=ReasmFeed(&t,3,"abc",3);
+	printf("b=%u size=%zu seq=%d s=%s\n",b,t.size_present,t.seq,t.packet);
+	return 0;
+*/
+
 #ifdef __CYGWIN__
 	if (service_run(argc, argv))
 	{
@@ -2076,6 +2096,9 @@ int main(int argc, char **argv)
 				DLOG_ERR("auto hostlist fail threshold must be within 2..10\n");
 				exit_clean(1);
 			}
+			break;
+		case IDX_HOSTLIST_AUTO_RETRANS_MAXSEQ:
+			dp->hostlist_auto_retrans_maxseq = (uint32_t)atoi(optarg);
 			break;
 		case IDX_HOSTLIST_AUTO_DEBUG:
 		{

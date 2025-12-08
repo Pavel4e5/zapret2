@@ -88,14 +88,10 @@ function standard_failure_detector(desync, crec, options)
 	local trigger = false
 	if desync.outgoing then
 		if #desync.dis.payload>0 and options.retrans and (crec.retrans or 0)<options.retrans then
-			if not crec.uppos then crec.uppos=0 end
-			if desync.track.tcp.pos_orig<=crec.uppos then
+			if is_retransmission(desync) then
 				crec.retrans = crec.retrans and (crec.retrans+1) or 1
 				DLOG("standard_failure_detector: retransmission "..crec.retrans.."/"..options.retrans)
 				trigger = crec.retrans>=options.retrans
-			end
-			if desync.track.tcp.pos_orig>crec.uppos then
-				crec.uppos=desync.track.tcp.pos_orig
 			end
 		end
 	else
@@ -171,7 +167,6 @@ function circular(ctx, desync)
 
 	if not desync.dis.tcp then
 		DLOG_ERR("circular: this orchestrator is tcp only. use filters to avoid udp traffic.")
-		instance_cutoff(ctx)
 		return
 	end
 	if not desync.track then

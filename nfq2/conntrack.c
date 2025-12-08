@@ -180,9 +180,17 @@ static void ConntrackFeedPacket(t_ctrack *t, bool bReverse, const struct tcphdr 
 		mss = ntohs(tcp_find_mss(tcphdr));
 		if (bReverse)
 		{
-			t->pos.pos_orig = t->pos.seq_last = ntohl(tcphdr->th_ack);
 			t->pos.ack_last = ntohl(tcphdr->th_seq);
+			t->pos.pos_orig = t->pos.seq_last = ntohl(tcphdr->th_ack);
 			t->pos.pos_reply = t->pos.ack_last + len_payload;
+			if (t->pos.state == SYN)
+				t->pos.uppos_reply_prev = t->pos.uppos_reply = t->pos.pos_reply;
+			else
+			{
+				t->pos.uppos_reply_prev = t->pos.uppos_reply;
+				if (!((t->pos.pos_reply - t->pos.uppos_reply) & 0x80000000))
+					t->pos.uppos_reply = t->pos.pos_reply;
+			}
 			t->pos.winsize_reply = ntohs(tcphdr->th_win);
 			t->pos.winsize_reply_calc = t->pos.winsize_reply;
 			if (t->pos.scale_reply != SCALE_NONE) t->pos.winsize_reply_calc <<= t->pos.scale_reply;
@@ -194,6 +202,14 @@ static void ConntrackFeedPacket(t_ctrack *t, bool bReverse, const struct tcphdr 
 			t->pos.seq_last = ntohl(tcphdr->th_seq);
 			t->pos.pos_orig = t->pos.seq_last + len_payload;
 			t->pos.pos_reply = t->pos.ack_last = ntohl(tcphdr->th_ack);
+			if (t->pos.state == SYN)
+				t->pos.uppos_orig_prev = t->pos.uppos_orig = t->pos.pos_orig;
+			else
+			{
+				t->pos.uppos_orig_prev = t->pos.uppos_orig;
+				if (!((t->pos.pos_orig - t->pos.uppos_orig) & 0x80000000))
+					t->pos.uppos_orig = t->pos.pos_orig;
+			}
 			t->pos.winsize_orig = ntohs(tcphdr->th_win);
 			t->pos.winsize_orig_calc = t->pos.winsize_orig;
 			if (t->pos.scale_orig != SCALE_NONE) t->pos.winsize_orig_calc <<= t->pos.scale_orig;

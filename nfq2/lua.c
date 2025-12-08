@@ -1291,17 +1291,21 @@ void lua_pushf_ctrack(const t_ctrack *ctrack, const t_ctrack_position *pos)
 		if (ctrack->ipproto == IPPROTO_TCP)
 		{
 			lua_pushliteral(params.L, "tcp");
-			lua_createtable(params.L, 0, 14);
+			lua_createtable(params.L, 0, 18);
 			lua_pushf_lint("seq0", pos->seq0);
 			lua_pushf_lint("seq", pos->seq_last);
 			lua_pushf_lint("ack0", pos->ack0);
 			lua_pushf_lint("ack", pos->ack_last);
 			lua_pushf_int("pos_orig", pos->pos_orig - pos->seq0);
+			lua_pushf_int("uppos_orig", pos->uppos_orig - pos->seq0);
+			lua_pushf_int("uppos_orig_prev", pos->uppos_orig_prev - pos->seq0);
 			lua_pushf_int("winsize_orig", pos->winsize_orig);
 			lua_pushf_int("winsize_orig_calc", pos->winsize_orig_calc);
 			lua_pushf_int("scale_orig", pos->scale_orig);
 			lua_pushf_int("mss_orig", pos->mss_orig);
 			lua_pushf_int("pos_reply", pos->pos_reply - pos->ack0);
+			lua_pushf_int("uppos_reply", pos->uppos_reply - pos->ack0);
+			lua_pushf_int("uppos_reply_prev", pos->uppos_reply_prev - pos->ack0);
 			lua_pushf_int("winsize_reply", pos->winsize_reply);
 			lua_pushf_int("winsize_reply_calc", pos->winsize_reply_calc);
 			lua_pushf_int("scale_reply", pos->scale_reply);
