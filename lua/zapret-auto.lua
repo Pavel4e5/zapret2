@@ -280,6 +280,7 @@ end
 -- for example, this can be used by custom protocol detectors
 -- arg: iff - condition function. takes desync as arg and returns bool. (cant use 'if' because of reserved word)
 -- arg: neg - invert condition function result
+-- test case : nfqws2 --qnum 200 --debug --lua-init=@zapret-lib.lua --lua-init=@zapret-auto.lua --lua-desync=condition:iff=cond_random --lua-desync=argdebug:testarg=1 --lua-desync=argdebug:testarg=2:morearg=xyz
 function condition(ctx, desync)
 	require_iff(desync, "condition")
 	orchestrate(ctx, desync)
@@ -295,6 +296,7 @@ end
 -- can be used with other orchestrators to stop execution conditionally
 -- arg: iff - condition function. takes desync as arg and returns bool. (cant use 'if' because of reserved word)
 -- arg: neg - invert condition function result
+-- test case : nfqws2 --qnum 200 --debug --lua-init=@zapret-lib.lua --lua-init=@zapret-auto.lua --in-range=-s1 --lua-desync=circular --lua-desync=stopif:iff=cond_random:strategy=1 --lua-desync=argdebug:strategy=1 --lua-desync=argdebug:strategy=2
 function stopif(ctx, desync)
 	require_iff(desync, "stopif")
 	orchestrate(ctx, desync)
