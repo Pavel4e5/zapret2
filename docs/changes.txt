@@ -81,6 +81,7 @@ v0.6.1
 * zapret-lib: detect_payload_str - sample lua payload detector
 * blockcheck2: unterminated string fix
 
-v0.6.2
+v0.7
 
 * nfqws2, zapret-lib : fix non-working % and # arg substitution under orchestrator
+* nfqws2, zapret-lib : structure conntrack in/out positions. pass in desync.track.pos.{client,server,direct,reverse} position tables

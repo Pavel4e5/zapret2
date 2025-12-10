@@ -37,16 +37,24 @@ function pktdebug(ctx, desync)
 end
 -- basic desync function
 -- prints function args
-function argdebug(ctx,desync)
+function argdebug(ctx, desync)
 	var_debug(desync.arg)
 end
 
 -- basic desync function
 -- prints conntrack positions to DLOG
-function posdebug(ctx,desync)
-	local s="posdebug:"
-	for i,pos in pairs({'n','d','b','s'}) do
-		s=s.." "..pos..pos_get(desync,pos)
+function posdebug(ctx, desync)
+	if not desync.track then
+		DLOG("posdebug: no track")
+		return
+	end
+	local s="posdebug: "..(desync.outgoing and "out" or "in").." time +"..desync.track.pos.dt.."s direct"
+	for i,pos in pairs({'n','d','b','s','p'}) do
+		s=s.." "..pos..pos_get(desync, pos, false)
+	end
+	s=s.." reverse"
+	for i,pos in pairs({'n','d','b','s','p'}) do
+		s=s.." "..pos..pos_get(desync, pos, true)
 	end
 	s=s.." payload "..#desync.dis.payload
 	if desync.reasm_data then
@@ -231,17 +239,28 @@ end
 -- pos is {mode,pos}
 -- range is {from={mode,pos}, to={mode,pos}, upper_cutoff}
 -- upper_cutoff = true means non-inclusive upper boundary
-function pos_get(desync, mode)
-	if desync.track then
+function pos_get_pos(track_pos, mode)
+	if track_pos then
 		if mode=='n' then
-			return desync.outgoing and desync.track.pcounter_orig or desync.track.pcounter_reply
+			return track_pos.pcounter
 		elseif mode=='d' then
-			return desync.outgoing and desync.track.pdcounter_orig or desync.track.pdcounter_reply
+			return track_pos.pdcounter
 		elseif mode=='b' then
-			return desync.outgoing and desync.track.pbcounter_orig or desync.track.pbcounter_reply
-		elseif mode=='s' and desync.track.tcp then
-			return desync.outgoing and u32add(desync.track.tcp.seq, -desync.track.tcp.seq0) or u32add(desync.track.tcp.ack, -desync.track.tcp.ack0)
+			return track_pos.pbcounter
+		elseif track_pos.tcp then
+			if mode=='s' then
+				return track_pos.tcp.rseq
+			elseif mode=='p' then
+				return track_pos.tcp.pos
+			end
 		end
+	end
+	return 0
+end
+function pos_get(desync, mode, reverse)
+	if desync.track then
+		local track_pos = reverse and desync.track.pos.reverse or desync.track.pos.direct
+		return pos_get_pos(track_pos,mode)
 	end
 	return 0
 end

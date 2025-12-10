@@ -141,11 +141,11 @@ function standard_failure_detector(desync, crec, arg)
 		if desync.outgoing then
 			if udp_out then
 				local udp_in = udp_in or 0
-				trigger = desync.track.pcounter_orig>=udp_out and desync.track.pcounter_reply<=udp_in
+				trigger = desync.track.pos.direct.pcounter>=udp_out and desync.track.pos.reverse.pcounter<=udp_in
 				if trigger then
 					crec.nocheck = true
 					if b_debug then
-						DLOG("standard_failure_detector: udp_out "..desync.track.pcounter_orig..">="..udp_out.." udp_in "..desync.track.pcounter_reply.."<="..udp_in)
+						DLOG("standard_failure_detector: udp_out "..desync.track.pos.direct.pcounter..">="..udp_out.." udp_in "..desync.track.pos.reverse.pcounter.."<="..udp_in)
 					end
 				end
 			end

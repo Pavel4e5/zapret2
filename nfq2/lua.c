@@ -1260,23 +1260,44 @@ void lua_pushf_dissect(const struct dissect *dis)
 	lua_rawset(params.L,-3);
 }
 
-void lua_pushf_ctrack(const t_ctrack *ctrack, const t_ctrack_position *pos)
+void lua_pushf_ctrack_pos(const t_ctrack *ctrack, const t_ctrack_position *pos)
 {
 	LUA_STACK_GUARD_ENTER(params.L)
 
-	if (!pos) pos = &ctrack->pos;
+	lua_pushf_lint("pcounter", pos->pcounter);
+	lua_pushf_lint("pdcounter", pos->pdcounter);
+	lua_pushf_lint("pbcounter", pos->pbcounter);
+	if (ctrack->ipproto == IPPROTO_TCP)
+	{
+		lua_pushliteral(params.L, "tcp");
+		lua_createtable(params.L, 0, 10);
+		lua_pushf_lint("seq0", pos->seq0);
+		lua_pushf_lint("seq", pos->seq_last);
+		lua_pushf_lint("rseq", pos->seq_last - pos->seq0);
+		lua_pushf_int("pos", pos->pos - pos->seq0);
+		lua_pushf_int("uppos", pos->uppos - pos->seq0);
+		lua_pushf_int("uppos_prev", pos->uppos_prev - pos->seq0);
+		lua_pushf_int("winsize", pos->winsize);
+		lua_pushf_int("winsize_calc", pos->winsize_calc);
+		lua_pushf_int("scale", pos->scale);
+		lua_pushf_int("mss", pos->mss);
+		lua_rawset(params.L,-3);
+	}
+
+	LUA_STACK_GUARD_LEAVE(params.L, 0)
+}
+
+void lua_pushf_ctrack(const t_ctrack *ctrack, const t_ctrack_positions *tpos, bool bIncoming)
+{
+	LUA_STACK_GUARD_ENTER(params.L)
+
+	if (!tpos) tpos = &ctrack->pos;
 
 	lua_pushliteral(params.L, "track");
 	if (ctrack)
 	{
-		lua_createtable(params.L, 0, 13 + (ctrack->ipproto == IPPROTO_TCP));
+		lua_createtable(params.L, 0, 9);
 
-		lua_pushf_lint("pcounter_orig", pos->pcounter_orig);
-		lua_pushf_lint("pdcounter_orig", pos->pdcounter_orig);
-		lua_pushf_lint("pbcounter_orig", pos->pbcounter_orig);
-		lua_pushf_lint("pcounter_reply", pos->pcounter_reply);
-		lua_pushf_lint("pdcounter_reply", pos->pdcounter_reply);
-		lua_pushf_lint("pbcounter_reply", pos->pbcounter_reply);
 		if (ctrack->incoming_ttl)
 			lua_pushf_int("incoming_ttl", ctrack->incoming_ttl);
 		else
@@ -1287,31 +1308,36 @@ void lua_pushf_ctrack(const t_ctrack *ctrack, const t_ctrack_position *pos)
 		lua_pushf_reg("lua_state", ctrack->lua_state);
 		lua_pushf_bool("lua_in_cutoff", ctrack->b_lua_in_cutoff);
 		lua_pushf_bool("lua_out_cutoff", ctrack->b_lua_out_cutoff);
+		lua_pushf_lint("t_start", ctrack->t_start);
 
-		if (ctrack->ipproto == IPPROTO_TCP)
-		{
-			lua_pushliteral(params.L, "tcp");
-			lua_createtable(params.L, 0, 18);
-			lua_pushf_lint("seq0", pos->seq0);
-			lua_pushf_lint("seq", pos->seq_last);
-			lua_pushf_lint("ack0", pos->ack0);
-			lua_pushf_lint("ack", pos->ack_last);
-			lua_pushf_int("pos_orig", pos->pos_orig - pos->seq0);
-			lua_pushf_int("uppos_orig", pos->uppos_orig - pos->seq0);
-			lua_pushf_int("uppos_orig_prev", pos->uppos_orig_prev - pos->seq0);
-			lua_pushf_int("winsize_orig", pos->winsize_orig);
-			lua_pushf_int("winsize_orig_calc", pos->winsize_orig_calc);
-			lua_pushf_int("scale_orig", pos->scale_orig);
-			lua_pushf_int("mss_orig", pos->mss_orig);
-			lua_pushf_int("pos_reply", pos->pos_reply - pos->ack0);
-			lua_pushf_int("uppos_reply", pos->uppos_reply - pos->ack0);
-			lua_pushf_int("uppos_reply_prev", pos->uppos_reply_prev - pos->ack0);
-			lua_pushf_int("winsize_reply", pos->winsize_reply);
-			lua_pushf_int("winsize_reply_calc", pos->winsize_reply_calc);
-			lua_pushf_int("scale_reply", pos->scale_reply);
-			lua_pushf_int("mss_reply", pos->mss_reply);
-			lua_rawset(params.L,-3);
-		}
+		lua_pushliteral(params.L, "pos");
+		lua_createtable(params.L, 0, 5);
+
+		// orig, reply related to connection logical direction
+		// for tcp orig is client (who connects), reply is server (who listens). 
+		// for orig is the first seen party, reply is another party
+		lua_pushf_lint("dt", tpos->t_last - ctrack->t_start);
+
+		lua_pushliteral(params.L, "client");
+		lua_newtable(params.L);
+		lua_pushf_ctrack_pos(ctrack, &tpos->client);
+		lua_rawset(params.L,-3);
+
+		lua_pushliteral(params.L, "server");
+		lua_newtable(params.L);
+		lua_pushf_ctrack_pos(ctrack, &tpos->server);
+		lua_rawset(params.L,-3);
+
+		// direct and reverse are adjusted for server mode. in server mode orig and reply are exchanged.
+		lua_pushliteral(params.L, "direct");
+		lua_getfield(params.L, -2, (params.server ^ bIncoming) ? "server" : "client");
+		lua_rawset(params.L,-3);
+
+		lua_pushliteral(params.L, "reverse");
+		lua_getfield(params.L, -2, (params.server ^ bIncoming) ? "client" : "server");
+		lua_rawset(params.L,-3);
+
+		lua_rawset(params.L,-3);
 	}
 	else
 		lua_pushnil(params.L);

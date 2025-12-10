@@ -514,7 +514,7 @@ bool pf_is_empty(const port_filter *pf)
 
 bool packet_pos_parse(const char *s, struct packet_pos *pos)
 {
-	if (*s!='n' && *s!='d' && *s!='s' && *s!='b' && *s!='x' && *s!='a') return false;
+	if (*s!='n' && *s!='d' && *s!='s' && *s!='p' && *s!='b' && *s!='x' && *s!='a') return false;
 	pos->mode=*s;
 	if (pos->mode=='x' || pos->mode=='a')
 	{

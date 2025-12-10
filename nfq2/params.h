@@ -40,7 +40,7 @@
 #define BLOB_EXTRA_BYTES		128
 
 // this MSS is used for ipv6 in windows and linux
-#define DEFAULT_MSS			1360
+#define DEFAULT_MSS			1220
 
 #define RECONSTRUCT_MAX_SIZE		16384
 

@@ -34,6 +34,7 @@
 #endif
 
 // pushing and not popping inside luacall cause memory leak
+// these macros ensure correct stack position or throw error if not
 #define LUA_STACK_GUARD_ENTER(L) int _lsg=lua_gettop(L);
 #define LUA_STACK_GUARD_LEAVE(L,N) if ((_lsg+N)!=lua_gettop(L)) luaL_error(L,"stack guard failure");
 #define LUA_STACK_GUARD_RETURN(L,N) LUA_STACK_GUARD_LEAVE(L,N); return N;
@@ -86,8 +87,8 @@ void lua_pushf_iphdr(const struct ip *ip, size_t len);
 void lua_pushf_ip6hdr(const struct ip6_hdr *ip6, size_t len);
 void lua_push_dissect(const struct dissect *dis);
 void lua_pushf_dissect(const struct dissect *dis);
-void lua_pushf_ctrack(const t_ctrack *ctrack, const t_ctrack_position *pos);
-void lua_pushf_args(const struct str2_list_head *args, int idx_desync);
+void lua_pushf_ctrack(const t_ctrack *ctrack, const t_ctrack_positions *tpos, bool bIncoming);
+void lua_pushf_args(const struct str2_list_head *args, int idx_desync, bool subst_prefix);
 void lua_pushf_pos(const char *name, const struct packet_pos *pos);
 void lua_pushf_range(const char *name, const struct packet_range *range);
 void lua_pushf_global(const char *field, const char *global);

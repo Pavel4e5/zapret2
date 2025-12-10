@@ -54,8 +54,10 @@ typedef struct
 	bool bCheckDone, bCheckResult, bCheckExcluded; // hostlist check result cache
 	uint8_t ipproto;
 
+	time_t t_start;
+
 	// this block of data can change between delayed (queued) packets. need to remeber this data for each packet for further replay
-	t_ctrack_position pos;
+	t_ctrack_positions pos;
 
 	struct desync_profile *dp;		// desync profile cache
 	bool dp_search_complete;
@@ -78,7 +80,7 @@ typedef struct
 	int lua_state;				// registry index of associated LUA object
 	int lua_instance_cutoff;		// registry index of per connection function instance cutoff table
 
-	t_reassemble reasm_orig;
+	t_reassemble reasm_client;
 	struct rawpacket_tailhead delayed;
 } t_ctrack;
 
