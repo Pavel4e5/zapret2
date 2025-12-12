@@ -111,3 +111,240 @@ LUA инстанс может сам себя отключить от получ
 После выполнения всей цепочки инстансов профиля C код получает итоговый вердикт - что делать с текущим диссектом. Отправить как есть, отправить модифицированный вариант или дропнуть.
 
 В конце nfqws2 переходит к ожиданию следующего пакета, и цикл повторяется вновь.
+
+# Перехват трафика из ядра ОС
+
+## Перехват трафика в ядре Linux
+
+Осуществляется при помощи iptables или nftables с использованием механизма очередей NFQUEUE.
+nftables - предпочтительны, потому что позволяют работать с трафиком после NAT, а iptables - нет.
+Это важно при обработке проходящего (forwarded) трафика. На iptables она невозможна, поэтому некоторые воздействия, ломающие NAT,
+на iptables на проходящем трафике нереализуемы.
+У nftables есть один важный недостаток - чрезмерное требование к памяти при загрузке
+больших set-ов. Например, чтобы загрузить 100K IP адресов, требуется от 256-320 Mb, что для роутеров часто оказывается за пределом возможностей.
+ipset от iptables такое может провернуть даже на 64 Mb RAM.
+
+Приведенные далее тестовые примеры предназначены для своей системы запуска или запуска вручную.
+Скрипты запуска zapret сами генерируют необходимые правила, никаких ip/nf tables самому писать не нужно.
+
+### Перехват трафика с помощью nftables
+
+Тестовая таблица для POSTNAT схемы.
+Обеспечивает перехват на очередь 200 первых входящих и исходящих пакетов по потоку после NAT, если таковой присутствует.
+Из-за NAT IP адреса клиентов теряются, замещаясь IP wan интерфейса.
+Количество первых пакетов регулируется согласно вашей стратегии. Лишний перехват - дополнительная нагрузка на CPU.
+Перехват RST и FIN желателен для максимально корректной работы conntrack.
+
+Фильтр по mark необходим для предотвращения кольца. Без этого возможны зависания и неправильная работа.
+notrack нужен, чтобы NAT не ломал техники, которые не совместимы с NAT.
+Генерируемые nfqws2 пакеты не должны проходить проверки на валидность с точки зрения NAT и дропаться стандартными правилами таблиц.
+Подстановка IP адресов NAT не требуется, поскольку попадающий на nfqws2 пакет уже прошел NAT и имеет корректные адрес и порт источника для wan.
+
+```
+IFACE_WAN=wan
+MAX_PKT_IN=15
+MAX_PKT_OUT=15
+FWMARK=0x40000000
+PORTS_TCP=80,443
+PORTS_UDP=443
+QNUM=200
+
+nft create table inet ztest
+
+nft add chain inet ztest postnat "{type filter hook postrouting priority srcnat+1;}"
+nft add rule inet ztest postnat oifname $IFACE_WAN meta mark and $FWMARK == 0 tcp dport "{$PORTS_TCP}" ct original packets 1-$MAX_PKT_OUT queue num $QNUM bypass
+nft add rule inet ztest postnat oifname $IFACE_WAN meta mark and $FWMARK == 0 udp dport "{$PORTS_UDP}" ct original packets 1-$MAX_PKT_OUT queue num $QNUM bypass
+
+nft add chain inet ztest pre "{type filter hook prerouting priority filter;}"
+nft add rule inet ztest pre iifname $IFACE_WAN tcp sport "{$PORTS_TCP}" ct reply packets 1-$MAX_PKT_IN queue num $QNUM bypass
+nft add rule inet ztest pre iifname $IFACE_WAN tcp sport "{$PORTS_TCP}" "tcp flags & (syn | ack) == (syn | ack)" queue num $QNUM bypass
+nft add rule inet ztest pre iifname $IFACE_WAN tcp sport "{$PORTS_TCP}" tcp flags fin,rst queue num $QNUM bypass
+nft add rule inet ztest pre iifname $IFACE_WAN udp sport "{$PORTS_UDP}" ct reply packets 1-$MAX_PKT_IN queue num $QNUM bypass
+
+nft add chain inet ztest predefrag "{type filter hook output priority -401;}"
+nft add rule inet ztest predefrag "mark & $FWMARK != 0x00000000 notrack"
+```
+
+Удаление тестовой таблицы :
+
+```
+nft delete table inet ztest
+```
+
+### Перехват трафика с помощью iptables
+
+> [!CAUTION]
+> Начиная с ядер Linux 6.17 присутствует параметр конфигурации ядра CONFIG_NETFILTER_XTABLES_LEGACY, который по умолчанию в дистрибутиве может быть "not set". Отсутствие этой настройки выключает iptables-legacy. Это часть процесса депрекации iptables. Тем не менее iptables-nft будут работать, поскольку используют backend nftables.
+
+Тестовые правила для PRENAT схемы.
+Обеспечивают перехват на первых входящих и исходящих пакетов по потоку до NAT, если таковой присутствует.
+Адреса и порты источника внутренней сети сохраняются. Атаки на проходящий трафик, ломающие NAT, невозможны, но возможны с самой системы.
+
+```
+IFACE_WAN=br0
+MAX_PKT_IN=15
+MAX_PKT_OUT=15
+FWMARK=0x40000000
+PORTS_TCP=80,443
+PORTS_UDP=443
+QNUM=200
+
+for tables in iptables ip6tables; do
+	$tables -t mangle -F ztest_post 2>/dev/null
+	$tables -t mangle -X ztest_post 2>/dev/null
+	$tables -t mangle -N ztest_post
+	$tables -t mangle -C POSTROUTING -j ztest_post 2>/dev/null || $tables -t mangle -A POSTROUTING -j ztest_post
+	$tables -t mangle -F ztest_pre 2>/dev/null
+	$tables -t mangle -X ztest_pre 2>/dev/null
+	$tables -t mangle -N ztest_pre
+	$tables -t mangle -C PREROUTING -j ztest_pre 2>/dev/null || $tables -t mangle -A PREROUTING -j ztest_pre
+	$tables -t mangle -I ztest_post -o $IFACE_WAN -p tcp -m multiport --dports $PORTS_TCP -m connbytes --connbytes-dir=original --connbytes-mode=packets --connbytes 1:$MAX_PKT_OUT -m mark ! --mark $FWMARK/$FWMARK -j NFQUEUE --queue-num $QNUM --queue-bypass
+	$tables -t mangle -I ztest_post -o $IFACE_WAN -p udp -m multiport --dports $PORTS_UDP -m connbytes --connbytes-dir=original --connbytes-mode=packets --connbytes 1:$MAX_PKT_OUT -m mark ! --mark $FWMARK/$FWMARK -j NFQUEUE --queue-num $QNUM --queue-bypass
+#	$tables -t mangle -I ztest_pre -i $IFACE_WAN -p tcp -m multiport --sports $PORTS_TCP -m connbytes --connbytes-dir=reply --connbytes-mode=packets --connbytes 1:$MAX_PKT_IN -m mark ! --mark $FWMARK/$FWMARK -j NFQUEUE --queue-num $QNUM --queue-bypass
+	$tables -t mangle -I ztest_pre -i $IFACE_WAN -p tcp -m multiport --sports $PORTS_TCP --tcp-flags syn,ack syn,ack -m mark ! --mark $FWMARK/$FWMARK -j NFQUEUE --queue-num $QNUM --queue-bypass
+	$tables -t mangle -I ztest_pre -i $IFACE_WAN -p tcp -m multiport --sports $PORTS_TCP --tcp-flags fin fin -m mark ! --mark $FWMARK/$FWMARK -j NFQUEUE --queue-num $QNUM --queue-bypass
+	$tables -t mangle -I ztest_pre -i $IFACE_WAN -p tcp -m multiport --sports $PORTS_TCP --tcp-flags fin fin -m mark ! --mark $FWMARK/$FWMARK -j NFQUEUE --queue-num $QNUM --queue-bypass
+	$tables -t mangle -I ztest_pre -i $IFACE_WAN -p udp -m multiport --sports $PORTS_UDP -m connbytes --connbytes-dir=reply --connbytes-mode=packets --connbytes 1:$MAX_PKT_IN -m mark ! --mark $FWMARK/$FWMARK -j NFQUEUE --queue-num $QNUM --queue-bypass
+done
+```
+
+Удаление тестовых правил zapret :
+
+```
+for tables in iptables ip6tables; do
+	$tables -t mangle -D POSTROUTING -j ztest_post
+	$tables -t mangle -D PREROUTING -j ztest_pre
+	$tables -t mangle -F ztest_post
+	$tables -t mangle -X ztest_post
+	$tables -t mangle -F ztest_pre
+	$tables -t mangle -X ztest_pre
+done
+```
+
+Удаление всех правил из таблицы mangle, включая и иные правила :
+```
+iptables -F -t mangle
+ip6tables -F -t mangle
+```
+
+## Перехват трафика в ядре FreeBSD
+
+Основная боль при перехвате трафика на системах, отличных от Linux, - невозможность перехватить первые пакеты потока.
+Можно перехватить только весь поток целиком по направлению.
+В BSD с этим дела хуже всего - нет даже возможностей фильтрации raw payload, то есть по содержимому пакета.
+Поэтому первый набор правил - это перехват всех исходящих по портам и перехват только SYN+ACK,FIN,RST для TCP, чтобы
+без нагрузки на процессор можно было задействовать режим autottl и максимально корректно работал conntrack.
+Однако, в таком варианте не будет работать ничего, что требует иного входящего трафика.
+
+```
+RULE=100
+IFACE_WAN=vmx0
+PORTS_TCP=80,443
+PORTS_UDP=443
+PORT_DIVERT=989
+
+ipfw delete $RULE
+ipfw add $RULE divert $PORT_DIVERT tcp from any to any $PORTS_TCP out not diverted xmit $IFACE_WAN
+ipfw add $RULE divert $PORT_DIVERT udp from any to any $PORTS_UDP out not diverted xmit $IFACE_WAN
+ipfw add $RULE divert $PORT_DIVERT tcp from any $PORTS_TCP to any tcpflags syn,ack in not diverted recv $IFACE_WAN
+ipfw add $RULE divert $PORT_DIVERT tcp from any $PORTS_TCP to any tcpflags fin in not diverted recv $IFACE_WAN
+ipfw add $RULE divert $PORT_DIVERT tcp from any $PORTS_TCP to any tcpflags rst in not diverted recv $IFACE_WAN
+```
+
+Вариант с перехватом потока в обе стороны. Особо сильно загружает процессор.
+Все скачиваемые гигабайты пойдут через dvtws2. Из них обычно нужно всего 1-2 пакета, все остальное - впустую расходует CPU,
+но средства ipfw не предоставляют иных возможностей.
+
+```
+RULE=100
+IFACE_WAN=vmx0
+PORTS_TCP=80,443
+PORTS_UDP=443
+PORT_DIVERT=989
+
+ipfw delete $RULE
+ipfw add $RULE divert $PORT_DIVERT tcp from any to any $PORTS_TCP out not diverted xmit $IFACE_WAN
+ipfw add $RULE divert $PORT_DIVERT udp from any to any $PORTS_UDP out not diverted xmit $IFACE_WAN
+ipfw add $RULE divert $PORT_DIVERT tcp from any $PORTS_TCP to any in not diverted recv $IFACE_WAN
+ipfw add $RULE divert $PORT_DIVERT udp from any $PORTS_UDP to any in not diverted recv $IFACE_WAN
+```
+
+Теоретически возможен перехват через pf divert-to, но на практике механизм предотвращения зацикливания сломан,
+поэтому использовать pf нереально.
+На pfsense и opnsense требуются дополнительные меры для задействования pf и ipfw одновременно.
+Часто с этим бывают проблемы, конфликты и глюки.
+
+## Перехват трафика в ядре OpenBSD
+
+В OpenBSD есть только pf. С механизмом предотвращения зацикливания divert все в порядке.
+
+Перехват всех исходящих по портам и перехват только SYN+ACK,FIN,RST для TCP, чтобы
+без нагрузки на процессор можно было задействовать режим autottl и максимально корректно работал conntrack.
+Однако, в таком варианте не будет работать ничего, что требует иного входящего трафика.
+
+pf требует файлов с правилами. Вы пишите pf файл (обычно используется /etc/pf.conf), потом его применяете через
+`pfctl -f /etc/pf.conf`.  `pfctl -e` включает pf, `pfctl -d` - выключает.
+Возможно использование якорей (anchors) с отдельными файлами правил, читайте документацию по pf.
+
+Трюки с no state нужны, чтобы предотвратить автоматический перехват и входящих пакетов по потоку.
+
+```
+IFACE_WAN = "em0"
+PORTS_TCP = "80,443"
+PORTS_UDP = "443"
+PORT_DIVERT = "989"
+
+pass in quick on $IFACE_WAN proto tcp from port { $PORTS_TCP } flags SA/SA divert-packet port $PORT_DIVERT no state
+pass in quick on $IFACE_WAN proto tcp from port { $PORTS_TCP } flags R/R divert-packet port $PORT_DIVERT no state
+pass in quick on $IFACE_WAN proto tcp from port { $PORTS_TCP } flags F/F divert-packet port $PORT_DIVERT no state
+pass in quick on $IFACE_WAN proto tcp from port { $PORTS_TCP } no state
+pass out quick on $IFACE_WAN proto tcp to port { $PORTS_TCP } divert-packet port $PORT_DIVERT no state
+pass out quick on $IFACE_WAN proto udp to port { $PORTS_UDP } divert-packet port $PORT_DIVERT no state
+```
+
+Вариант с перехватом потока в обе стороны. Особо сильно загружает процессор.
+Все скачиваемые гигабайты пойдут через dvtws2. Из них обычно нужно всего 1-2 пакета, все остальное - впустую расходует CPU,
+но средства pf не предоставляют иных возможностей.
+
+Перехват входящих по тем же портам обеспечивается автоматически за счет state.
+
+```
+IFACE_WAN = "em0"
+PORTS_TCP = "80,443"
+PORTS_UDP = "443"
+PORT_DIVERT = "989"
+
+pass out quick on $IFACE_WAN proto tcp to port { $PORTS_TCP } divert-packet port $PORT_DIVERT
+pass out quick on $IFACE_WAN proto udp to port { $PORTS_UDP } divert-packet port $PORT_DIVERT
+```
+
+## Перехват трафика в ядре Windows
+
+В Windows нет встроенных средств для перехвата трафика. Используется стороннее решение - драйвер windivert.
+Управление интегрируется в сам процесс winws2.
+
+windivert принимает [текстовые фильтры](https://reqrypt.org/windivert-doc.html#filter_language), похожие на фильтры wireshark и tcpdump.
+В них есть возможности фильтрации по ip (без ipset), портам и raw пейлоадам. Нет побитовых логических операций и сдвигов.
+Нет отслеживания потоков и ограничения по первым пакетам.
+
+Драйвер windivert больше не разрабатывается, однако имеются подписанные варианты драйвера, совместимые со всеми современными windows,
+но только для архитектуры x86_64. На arm64 есть неподписанный драйвер, требующий тестового режима подписи драйверов.
+При использовании winws2 на arm64 приходится пользоваться x86_64 версией, поскольку winws2 написан под cygwin, а его нет для arm.
+Драйвер .sys при этом заменяется на неподписанную arm64 версию.
+
+windivert является частой целью для нападок антивирусов. Это хакерский инструмент, но вирусом он не является.
+Правильнее воспринимать его как замену iptables для windows.
+Иногда случаются конфликты со сторонним ПО, использующим драйвера режима ядра - прежде всего антивирусы и фаерволы, вплоть до синих экранов.
+Практически исправить это нереально хотя бы из-за подписи драйверов, которую получить простому смертному без стоящих за ним корпораций очень непросто и накладно.
+
+windivert не может обеспечить корректного перехвата проходящего трафика при раздаче сети средствами windows и как следствие использовании NAT,
+поэтому возможности работы по проходящему трафику не реализованы. Единственный доступный вариант - установить proxy server.
+
+winws2 может принимать полные raw фильтры - вы пишите фильтр сами и указываете его в параметре `--wf-raw=<filter>` или `--wf-raw=@<filter_file>`.
+Но это обычно не очень удобно, поэтому существует встроенный конструктор фильтров.
+
+`--wf-tcp-out`, `--wf-tcp-in`, `--wf-udp-out`, `--wf-udp-in` берут список портов (`80,443`) или диапазонов портов (`80,443,500-1000`)
+и включают полный перехват портов по указанному направлению.
+
+`--wf-raw-part` принимает частичные windivert фильтры. Синтаксис аналогичен `--wf-raw`. `--wf-raw-part` может быть несколько.
+Частичные фильтры встраиваются конструктором в итоговый фильтр по принципу OR. Или указанные порты, или ваш фильтр1 или ваш фильтр2.
