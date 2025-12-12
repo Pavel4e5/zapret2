@@ -348,15 +348,20 @@ static void process_udp_fail(t_ctrack *ctrack, const t_ctrack_positions *tpos, c
 	if (!params.server && ctrack && ctrack->dp && ctrack->hostname && ctrack->hostname_ah_check &&
 		!ctrack->failure_detect_finalized && ctrack->dp->hostlist_auto_udp_out)
 	{
+		char client_ip_port[48];
+
 		if (!tpos) tpos = &ctrack->pos;
 		//printf("UDP_POS %u %u\n",tpos->client.pcounter, tpos->server.pcounter);
 		if (tpos->server.pcounter > ctrack->dp->hostlist_auto_udp_in)
+		{
 			// success
 			ctrack->failure_detect_finalized = true;
+			fill_client_ip_port(client, client_ip_port, sizeof(client_ip_port));
+			auto_hostlist_reset_fail_counter(ctrack->dp, ctrack->hostname, client_ip_port, ctrack->l7proto);
+		}
 		else if (tpos->client.pcounter >= ctrack->dp->hostlist_auto_udp_out)
 		{
 			// failure
-			char client_ip_port[48];
 			ctrack->failure_detect_finalized = true;
 			fill_client_ip_port(client, client_ip_port, sizeof(client_ip_port));
 			HOSTLIST_DEBUGLOG_APPEND("%s : profile %u (%s) : client %s : proto %s : udp_in %u<=%u udp_out %u>=%u",
