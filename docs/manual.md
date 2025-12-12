@@ -136,9 +136,11 @@ ipset от iptables такое может провернуть даже на 64 
 Перехват RST и FIN желателен для максимально корректной работы conntrack.
 
 Фильтр по mark необходим для предотвращения кольца. Без этого возможны зависания и неправильная работа.
+
 notrack нужен, чтобы NAT не ломал техники, которые не совместимы с NAT.
 Генерируемые nfqws2 пакеты не должны проходить проверки на валидность с точки зрения NAT и дропаться стандартными правилами таблиц.
 Подстановка IP адресов NAT не требуется, поскольку попадающий на nfqws2 пакет уже прошел NAT и имеет корректные адрес и порт источника для wan.
+
 
 ```
 IFACE_WAN=wan
@@ -152,14 +154,15 @@ QNUM=200
 nft create table inet ztest
 
 nft add chain inet ztest postnat "{type filter hook postrouting priority srcnat+1;}"
-nft add rule inet ztest postnat oifname $IFACE_WAN meta mark and $FWMARK == 0 tcp dport "{$PORTS_TCP}" ct original packets 1-$MAX_PKT_OUT queue num $QNUM bypass
 nft add rule inet ztest postnat oifname $IFACE_WAN meta mark and $FWMARK == 0 udp dport "{$PORTS_UDP}" ct original packets 1-$MAX_PKT_OUT queue num $QNUM bypass
+nft add rule inet ztest postnat oifname $IFACE_WAN meta mark and $FWMARK == 0 tcp dport "{$PORTS_TCP}" ct original packets 1-$MAX_PKT_OUT queue num $QNUM bypass
+nft add rule inet ztest postnat oifname $IFACE_WAN meta mark and $FWMARK == 0 tcp dport "{$PORTS_TCP}" tcp flags fin,rst queue num $QNUM bypass
 
 nft add chain inet ztest pre "{type filter hook prerouting priority filter;}"
+nft add rule inet ztest pre iifname $IFACE_WAN udp sport "{$PORTS_UDP}" ct reply packets 1-$MAX_PKT_IN queue num $QNUM bypass
 nft add rule inet ztest pre iifname $IFACE_WAN tcp sport "{$PORTS_TCP}" ct reply packets 1-$MAX_PKT_IN queue num $QNUM bypass
 nft add rule inet ztest pre iifname $IFACE_WAN tcp sport "{$PORTS_TCP}" "tcp flags & (syn | ack) == (syn | ack)" queue num $QNUM bypass
 nft add rule inet ztest pre iifname $IFACE_WAN tcp sport "{$PORTS_TCP}" tcp flags fin,rst queue num $QNUM bypass
-nft add rule inet ztest pre iifname $IFACE_WAN udp sport "{$PORTS_UDP}" ct reply packets 1-$MAX_PKT_IN queue num $QNUM bypass
 
 nft add chain inet ztest predefrag "{type filter hook output priority -401;}"
 nft add rule inet ztest predefrag "mark & $FWMARK != 0x00000000 notrack"
@@ -189,22 +192,26 @@ PORTS_TCP=80,443
 PORTS_UDP=443
 QNUM=200
 
+JNFQ="-j NFQUEUE --queue-num $QNUM --queue-bypass"
+CHECKMARK="-m mark ! --mark $FWMARK/$FWMARK"
+CB_ORIG="-m connbytes --connbytes-dir=original --connbytes-mode=packets"
+CB_REPLY="-m connbytes --connbytes-dir=reply --connbytes-mode=packets"
 for tables in iptables ip6tables; do
-	$tables -t mangle -F ztest_post 2>/dev/null
-	$tables -t mangle -X ztest_post 2>/dev/null
-	$tables -t mangle -N ztest_post
+	$tables -t mangle -N ztest_post 2>/dev/null
+	$tables -t mangle -F ztest_post
 	$tables -t mangle -C POSTROUTING -j ztest_post 2>/dev/null || $tables -t mangle -A POSTROUTING -j ztest_post
-	$tables -t mangle -F ztest_pre 2>/dev/null
-	$tables -t mangle -X ztest_pre 2>/dev/null
-	$tables -t mangle -N ztest_pre
+	$tables -t mangle -N ztest_pre 2>/dev/null
+	$tables -t mangle -F ztest_pre
 	$tables -t mangle -C PREROUTING -j ztest_pre 2>/dev/null || $tables -t mangle -A PREROUTING -j ztest_pre
-	$tables -t mangle -I ztest_post -o $IFACE_WAN -p tcp -m multiport --dports $PORTS_TCP -m connbytes --connbytes-dir=original --connbytes-mode=packets --connbytes 1:$MAX_PKT_OUT -m mark ! --mark $FWMARK/$FWMARK -j NFQUEUE --queue-num $QNUM --queue-bypass
-	$tables -t mangle -I ztest_post -o $IFACE_WAN -p udp -m multiport --dports $PORTS_UDP -m connbytes --connbytes-dir=original --connbytes-mode=packets --connbytes 1:$MAX_PKT_OUT -m mark ! --mark $FWMARK/$FWMARK -j NFQUEUE --queue-num $QNUM --queue-bypass
-	$tables -t mangle -I ztest_pre -i $IFACE_WAN -p tcp -m multiport --sports $PORTS_TCP -m connbytes --connbytes-dir=reply --connbytes-mode=packets --connbytes 1:$MAX_PKT_IN -m mark ! --mark $FWMARK/$FWMARK -j NFQUEUE --queue-num $QNUM --queue-bypass
-	$tables -t mangle -I ztest_pre -i $IFACE_WAN -p tcp -m multiport --sports $PORTS_TCP --tcp-flags syn,ack syn,ack -m mark ! --mark $FWMARK/$FWMARK -j NFQUEUE --queue-num $QNUM --queue-bypass
-	$tables -t mangle -I ztest_pre -i $IFACE_WAN -p tcp -m multiport --sports $PORTS_TCP --tcp-flags fin fin -m mark ! --mark $FWMARK/$FWMARK -j NFQUEUE --queue-num $QNUM --queue-bypass
-	$tables -t mangle -I ztest_pre -i $IFACE_WAN -p tcp -m multiport --sports $PORTS_TCP --tcp-flags rst rst -m mark ! --mark $FWMARK/$FWMARK -j NFQUEUE --queue-num $QNUM --queue-bypass
-	$tables -t mangle -I ztest_pre -i $IFACE_WAN -p udp -m multiport --sports $PORTS_UDP -m connbytes --connbytes-dir=reply --connbytes-mode=packets --connbytes 1:$MAX_PKT_IN -m mark ! --mark $FWMARK/$FWMARK -j NFQUEUE --queue-num $QNUM --queue-bypass
+	$tables -t mangle -I ztest_post -o $IFACE_WAN $CHECKMARK -p udp -m multiport --dports $PORTS_UDP $CB_ORIG --connbytes 1:$MAX_PKT_OUT $JNFQ
+	$tables -t mangle -I ztest_post -o $IFACE_WAN $CHECKMARK -p tcp -m multiport --dports $PORTS_TCP $CB_ORIG --connbytes 1:$MAX_PKT_OUT $JNFQ
+	$tables -t mangle -I ztest_post -o $IFACE_WAN $CHECKMARK -p tcp -m multiport --dports $PORTS_TCP --tcp-flags fin fin $JNFQ
+	$tables -t mangle -I ztest_post -o $IFACE_WAN $CHECKMARK -p tcp -m multiport --dports $PORTS_TCP --tcp-flags rst rst $JNFQ
+	$tables -t mangle -I ztest_pre -i $IFACE_WAN -p udp -m multiport --sports $PORTS_UDP $CB_REPLY --connbytes 1:$MAX_PKT_IN $JNFQ
+	$tables -t mangle -I ztest_pre -i $IFACE_WAN -p tcp -m multiport --sports $PORTS_TCP $CB_REPLY --connbytes 1:$MAX_PKT_IN $JNFQ
+	$tables -t mangle -I ztest_pre -i $IFACE_WAN -p tcp -m multiport --sports $PORTS_TCP --tcp-flags syn,ack syn,ack $JNFQ
+	$tables -t mangle -I ztest_pre -i $IFACE_WAN -p tcp -m multiport --sports $PORTS_TCP --tcp-flags fin fin $JNFQ
+	$tables -t mangle -I ztest_pre -i $IFACE_WAN -p tcp -m multiport --sports $PORTS_TCP --tcp-flags rst rst $JNFQ
 done
 ```
 
