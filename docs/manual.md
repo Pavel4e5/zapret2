@@ -203,7 +203,7 @@ for tables in iptables ip6tables; do
 #	$tables -t mangle -I ztest_pre -i $IFACE_WAN -p tcp -m multiport --sports $PORTS_TCP -m connbytes --connbytes-dir=reply --connbytes-mode=packets --connbytes 1:$MAX_PKT_IN -m mark ! --mark $FWMARK/$FWMARK -j NFQUEUE --queue-num $QNUM --queue-bypass
 	$tables -t mangle -I ztest_pre -i $IFACE_WAN -p tcp -m multiport --sports $PORTS_TCP --tcp-flags syn,ack syn,ack -m mark ! --mark $FWMARK/$FWMARK -j NFQUEUE --queue-num $QNUM --queue-bypass
 	$tables -t mangle -I ztest_pre -i $IFACE_WAN -p tcp -m multiport --sports $PORTS_TCP --tcp-flags fin fin -m mark ! --mark $FWMARK/$FWMARK -j NFQUEUE --queue-num $QNUM --queue-bypass
-	$tables -t mangle -I ztest_pre -i $IFACE_WAN -p tcp -m multiport --sports $PORTS_TCP --tcp-flags fin fin -m mark ! --mark $FWMARK/$FWMARK -j NFQUEUE --queue-num $QNUM --queue-bypass
+	$tables -t mangle -I ztest_pre -i $IFACE_WAN -p tcp -m multiport --sports $PORTS_TCP --tcp-flags rst rst -m mark ! --mark $FWMARK/$FWMARK -j NFQUEUE --queue-num $QNUM --queue-bypass
 	$tables -t mangle -I ztest_pre -i $IFACE_WAN -p udp -m multiport --sports $PORTS_UDP -m connbytes --connbytes-dir=reply --connbytes-mode=packets --connbytes 1:$MAX_PKT_IN -m mark ! --mark $FWMARK/$FWMARK -j NFQUEUE --queue-num $QNUM --queue-bypass
 done
 ```
