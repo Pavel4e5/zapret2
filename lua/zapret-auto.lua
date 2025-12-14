@@ -9,7 +9,7 @@
 function standard_hostkey(desync)
 	local hostkey = desync.track and desync.track.hostname
 	if hostkey then
-		if desync.arg.nld and tonumber(desync.arg.nld)>0 then
+		if desync.arg.nld and tonumber(desync.arg.nld)>0 and not (desync.track and desync.track.hostname_is_ip) then
 			-- dissect_nld returns nil if domain is invalid or does not have this NLD
 			-- fall back to original hostkey if it fails
 			local hktemp = dissect_nld(hostkey, tonumber(desync.arg.nld))
