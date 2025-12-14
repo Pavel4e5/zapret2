@@ -1236,12 +1236,16 @@ function genhost(len, template)
 	end
 end
 
--- return hostname if present or ip address in text form otherwise
+-- return ip addr of target host in text form
+function host_ip(desync)
+	return desync.target.ip and ntop(desync.target.ip) or desync.target.ip6 and ntop(desync.target.ip6)
+end
+-- return hostname of target host if present or ip address in text form otherwise
 function host_or_ip(desync)
 	if desync.track and desync.track.hostname then
 		return desync.track.hostname
 	end
-	return desync.target.ip and ntop(desync.target.ip) or desync.target.ip6 and ntop(desync.target.ip6)
+	return host_ip(desync)
 end
 
 function is_absolute_path(path)

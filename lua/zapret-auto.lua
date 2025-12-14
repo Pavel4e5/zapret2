@@ -3,20 +3,47 @@
 -- orchestrators can decide which instances to call or not to call or pass them dynamic arguments
 -- failure and success detectors test potential block conditions for orchestrators
 
--- per-host storage
+-- standard host key generator for per-host storage
 -- arg: reqhost - require hostname, do not work with ip
--- arg: key - a string - table name inside autostate table. to allow multiple orchestrator instances to use single host storage
-function automate_host_record(desync)
-	local hostkey, askey
-	if desync.arg.reqhost then
-		hostkey = desync.track and desync.track.hostname
-	else
-		hostkey = host_or_ip(desync)
+-- arg: nld=N - cut hostname to N level domain. NLD=2 static.intranet.microsoft.com => microsoft.com
+function standard_hostkey(desync)
+	local hostkey = desync.track and desync.track.hostname
+	if hostkey then
+		if desync.arg.nld and tonumber(desync.arg.nld)>0 then
+			-- dissect_nld returns nil if domain is invalid or does not have this NLD
+			-- fall back to original hostkey if it fails
+			local hktemp = dissect_nld(hostkey, tonumber(desync.arg.nld))
+			if hktemp then
+				hostkey = hktemp
+			end
+		end
+	elseif not desync.arg.reqhost then
+		hostkey = host_ip(desync)
 	end
+	-- prevent nld for ip addresses
+	return hostkey
+end
+
+-- per-host storage
+-- arg: key - a string - table name inside autostate table. to allow multiple orchestrator instances to use single host storage
+-- arg: hostkey - hostkey generator function name
+function automate_host_record(desync)
+	local hostkey, hkf, askey
+
+	if desync.arg.hostkey then
+		if type(_G[desync.arg.hostkey])~="function" then
+			error("automate: invalid hostkey function '"..desync.arg.hostkey.."'")
+		end
+		hkf = _G[desync.arg.hostkey]
+	else
+		hkf = standard_hostkey
+	end
+	hostkey = hkf(desync)
 	if not hostkey then
 		DLOG("automate: host record key unavailable")
 		return nil
 	end
+
 	askey = (desync.arg.key and #desync.arg.key>0) and desync.arg.key or desync.func_instance
 	DLOG("automate: host record key 'autostate."..askey.."."..hostkey.."'")
 	if not autostate then
