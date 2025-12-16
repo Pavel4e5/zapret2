@@ -1966,6 +1966,21 @@ function dissect_url(url)
 Возвращает таблицу, где разобраны части URL вида `proto://creds@domain:port/uri`.
 Если какая-либо из частей отсутствует, соответствующего поля нет в таблице.
 
+<details> 
+  <summary><b>Пример разборки `https://user:pass@domain.com:12345/my_uri/script.php?a=1&b=3`</b></summary>
+<pre>
+.proto
+  string https
+.creds
+  string user:pass
+.domain
+  string domain.com
+.port
+  string 12345
+.uri
+  string /my_uri/script.php?a=1&b=3
+</pre></details>
+
 ```
 function dissect_nld(domain, level)
 ```
