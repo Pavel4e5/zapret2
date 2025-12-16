@@ -1219,7 +1219,7 @@ ipv6 extension headers и tcp options представляются в форме
 | th_dport | порт приемника |
 | th_x2 | зарезервированное поле. используется для расширенных tcp flags |
 | th_off | размер tcp хедера в блоках по 4 байта |
-| th_flags | tcp флаги : TH_FIN,TH_SYN,TH_RST,TH_PUSH,TH_ACK,TH_FIN,TH_URG,THE_ECE,TH_CWR |
+| th_flags | tcp флаги : TH_FIN,TH_SYN,TH_RST,TH_PUSH,TH_ACK,TH_FIN,TH_URG,TH_ECE,TH_CWR |
 | th_seq | sequence number |
 | th_ack | acknowledgement number |
 | th_win | размер tcp окна |
@@ -1930,7 +1930,7 @@ function is_retransmission(desync)
 * seq_within - `seq_low <= seq <= seq_hi`
 * is_retransmission - является ли текущий диссект tcp ретрансмиссией
 
-### Обслуживание позиций
+## Обслуживание позиций
 
 ```
 function pos_counter_overflow(desync, mode, reverse)
@@ -1955,7 +1955,7 @@ function pos_str(desync, pos)
 * pos_str - преобразование таблицы позиции pos в стандартную строковую форму `<mode><pos>`, например `s100`.
 * pos_range_str - преобразование таблицы диапазона range в стандартную строковую форму `<mode_from><pos_from>(-|<)<mode_to><pos_to>`, например `d1-p5000`.
 
-### Диссекция
+## Диссекция
 
 Диссекция - это разбор некоторого сообщения для представления в структурированной форме.
 
@@ -2067,3 +2067,223 @@ function http_dissect_reply(http)
     .pos_end
       number 59
 </pre></details>
+
+## Работа с элементами L3 и L4 протоколов
+
+```
+function find_tcp_option(options, kind)
+```
+
+Вернуть первый элемент dis.tcp.options с опцией kind. nil, если не найдено.
+
+```
+function find_ip6_exthdr(exthdr, proto)
+```
+
+Вернуть первый элемент dis.ip6.exthdr с type = proto.
+
+```
+function insert_ip6_exthdr(ip6, idx, header_type, data)
+function del_ip6_exthdr(ip6, idx)
+function fix_ip6_next(ip6, last_proto)
+```
+
+Эти функции работают с диссектом ipv6 заголовка ip6 и его extension headers - ip6.exthdr.
+При вставлении или удалении extension headers сохраняется корректная цепочка следующих протоколов, начиная с базового ipv6 заголовка.
+* insert_ip6_exthdr вставляет extension header с протоколом header_type и данными data в диссект ip6 по индексу ip6.exthdr idx. Если idx=nil, вставляется в конец.
+* del_ip6_exthdr удаляет extension header по индексу ip6.exthdr idx.
+* fix_ip6_next восстанавливает корректную цепочку следующих протоколов за счет ip6_nxt и полей type в ip6.exthdr.
+
+```
+function l3_base_len(dis)
+function l3_extra_len(dis, ip6_exthdr_last_idx)
+function l3_len(dis)
+function l4_base_len(dis)
+function l4_extra_len(dis)
+function l4_len(dis)
+function l3l4_extra_len(dis)
+function l3l4_len(dis)
+function packet_len(dis)
+```
+
+Подсчет размеров различных элементов диссекта после реконструкции.
+
+* l3_base_len - базовая длина ip/ip6 заголовка без опций и extension headers.
+* l3_extra_len - длина ip options или суммарная длина всех extension headers. Если задан ip6_exthdr_last_idx, считаются extension headers до указанного индекса.
+* l3_len - полная длина ip/ip6 с опциями и extension headers
+* l4_base_len - базовая длина tcp или udp заголовка
+* l4_extra_len - длина tcp options для tcp, 0 для udp
+* l4_len - полная длина tcp заголовка с опциями или длина udp заголовка
+* l3l4_extra_len - сумма l3_extra_len и l4_extra_len
+* l3l4_len - полная длина ip/ip6 и tcp заголовков со всеми options и extension headers
+* packet_len - полная длина реконструированного пакета, включая L4 пейлоад
+
+## Работа с именами хостов
+
+```
+function genhost(len, template)
+```
+
+Генерирует случайный хост длиной len. 
+* Если есть template, генерирует случайный поддомен, чтобы вписаться в длину len. Если длины len не хватает, возвращает обрез template слева.
+* Если template=nil, генерирует случайный поддомен одного из известных 3-буквенных TLD. Если len<7, генерирует случайный домен без точек длиной len.
+
+Примеры :
+```
+-- template "google.com", len=16 : h82aj.google.com
+-- template "google.com", len=11 : .google.com
+-- template "google.com", len=10 : google.com
+-- template "google.com", len=7 : gle.com
+-- no template, len=6 : b8c54a
+-- no template, len=7 : u9a.edu
+-- no template, len=10 : jgha7c.com
+```
+
+```
+function host_ip(desync)
+function host_or_ip(desync)
+```
+
+* host_ip возвращает символьное представление desync.target.ip или desync.target.ip6
+* host_or_ip возвращает desync.track.hostname, если есть track и есть track.hostname, иначе host_ip(desync)
+
+## Операции с именами файлов и путями
+
+```
+function is_absolute_path(path)
+function append_path(path,file)
+function writeable_file_name(filename)
+```
+
+* is_absolute_path возвращает true, если путь path начинается с корня. Учитываются особенности путей CYGWIN.
+* append_path дописывает имя файла или каталога file к пути path, разделяя их знаком '/'
+* writeable_file_name возвращает filename, если filename содержит абсолютный путь или env `WRITEABLE` отсутствует.
+Иначе берется путь из env `WRITEABLE` и к нему дописывается имя файла filename.
+
+## autottl 
+
+```
+function parse_autottl(s)
+function autottl(incoming_ttl, attl)
+```
+
+Механизм autottl служит, чтобы автоматически на базе TTL входящего пакета определять такой TTL,
+который либо немного не достает до противопложного конца, либо немного превышает длину пути до него.
+delta - это положительная или отрицательная разница с догадкой о длине пути. min-max - допустимый диапазон.
+Если итоговый результат выходит за пределы диапазона, назначаются его крайние значения.
+Если delta<0 и результат оказывается равен пути или длиннее, либо если delta>=0 и результат оказывается короче пути, алгоритм уходит в ошибку и выдает nil.
+
+Вычисление производится на базе предположения о симметричности входящего и исходящего пути и TTL по умолчанию, используемых в основных ОС - 64, 128, 255.
+Эвристика работает не всегда из-за потенциальной неверности данных предположений, но иногда ее можно настроить до приемлемого уровня погрешности.
+
+* parse_autottl переводит строку вида `<delta>,<min>-<max>` в таблицу с идентичными полями. Вызывается error, если формат s неверен.
+* autottl производит эвристическую догадку о длине в хопах на базе TTL входящих пакетов и вычисляет TTL , учитывая дельту и допустимый диапазон.
+Готовый incoming_ttl можно взять из desync. attl имеет формат таблицы, получаемой через parse_autottl.
+
+## Операции с диссектами
+
+В следующих функция и функциях отсылки применяются стандартные блоки опций, представленных в виде полей отдельно передаваемой таблицы.
+Таблицы опций имеет формат desync.arg. Может передаваться прямо desync.arg без изменений.
+Если передается desync и опции nil, функции берут desync.arg по умолчанию вместо опций.
+
+ipid_options
+| Поле  | Описание |
+|:------|:---------|
+| ip_id | режим назначения ip_id : seq, rnd, zero, none<br>seq - последовательное<br>rnd - случайное<br>zero - ноль<br>none - не менять |
+| ip_id_conn | запоминать последнее сгенерированное значение seq и начинать с него в следующем пакете. не работает без desync.track |
+
+Из seq далеко не всегда получится ожидаемая и преемлемая последовательность.
+ip_id применяется только в ряде функций, оно не применяется ко всем проходящим пакетом автоматически.
+Поскольку ОС не следит за измененными ip_id, в пакетах, которые не трогали, оно может начать идти заново.
+Windows заменяет нулевые ip_id на собственную последовательность, остальные ОС - нет.
+
+fooling_options
+| Поле  | Описание |
+|:------|:---------|
+| ip_ttl | изменить TTL в ipv4 заголовке на указанный |
+| ip6_ttl | изменить TTL (HL) в ipv6 заголовке на указанный |
+| ip_autottl | изменить TTL в ipv4 заголовке на автоматически определяемый по шаблону autottl. при невозможности определения TTL не меняется |
+| ip6_autottl | изменить TTL (HL) в ipv6 заголовке на автоматически определяемый по шаблону autottl. при невозможности определения TTL (HL) не меняется |
+| ip6_hopbyhop | вставить extension header "hop-by-hop options". по умолчанию данные - 6 нулей, но можно задать hex строку с данными. длина должна быть 6+N*8 |
+| ip6_hopbyhop2 | вставить второй extension header "hop-by-hop options" |
+| ip6_destopt | вставить extension header "destination options". по умолчанию данные - 6 нулей, но можно задать hex строку с данными. длина должна быть 6+N*8 |
+| ip6_destopt2 | вставить второй extension header "destination options" |
+| ip6_routing | вставить extension header "routing options". по умолчанию данные - 6 нулей, но можно задать hex строку с данными. длина должна быть 6+N*8 |
+| ip6_ah | вставить extension header "authentication header". по умолчанию данные - 2 нуля и 4 случайных байта, но можно задать hex строку с данными. длина должна быть 6+N*4 |
+| tcp_seq | положительное или отрицательное смещение sequence |
+| tcp_ack | положительное или отрицательное смещение ack sequence |
+| tcp_ts | положительное или отрицательное смещение timestamp. работает только если уже есть timestamp option |
+| tcp_md5 | добавить MD5 header, если его еще нет. по умолчанию - случайные байты, но можно задать hex string длиной 16 байт |
+| tcp_flags_set | установить флаги TCP. флаги представлены списком через зяпятую : FIN,SYN,RST,PUSH,ACK,FIN,URG,ECE,CWR |
+| tcp_flags_unset | снять флаги TCP. аналогично tcp_flags_set |
+| tcp_ts_up | поднять tcp timestamp опцию в самое начало, если она есть |
+
+Опции IP фрагментации ipfrag_options содержат только два стандартных параметра. Остальное берут заменяемые функции фрагментаторы,
+для которых существуют свои специфические опции.
+ipfrag_options
+| Поле  | Описание |
+|:------|:---------|
+| ipfrag | имя функции фрагментатора. если нет, использовать ipfrag2. фрагментатор возвращает массив диссектов - фрагментов |
+| ipfrag_disorder | (стандартная опция) отправить фрагменты в обратном порядке |
+| ipfrag_pos_udp | (фрагментатор ipfrag2) позиция фрагментации udp. должна быть кратна 8, по умолчанию 8 |
+| ipfrag_pos_tcp | (фрагментатор ipfrag2) позиция фрагментации tcp. должна быть кратна 8, по умолчанию 32 |
+| ipfrag_next | (фрагментатор ipfrag2) тип следующего протокола в "fragment" extension header второго фрагмента |
+
+```
+function apply_ip_id(desync, dis, ipid_options, def)
+```
+
+Применить политику ip_id из ipid_options к диссекту dis.
+Если dis = nil, берется desync.dis.
+Если ipid_options = nil, берется desync.arg.
+def содержит режим назначения по умолчанию. Если nil, применяется "seq".
+
+```
+function apply_fooling(desync, dis, fooling_options)
+```
+
+Применяет набор модификаций L3/L4 заголовков (фулинг), описанный в fooling_options, к диссекту dis.
+Если dis = nil, берется desync.dis.
+Если fooling_options = nil, берется desync.arg
+
+## Отсылка
+
+Следующие функции могут брать несколько блоков описанных выше опций, каждый из которых представлен полем параметра options.
+Во всех функциях используется `options.reconstruct` и `options.rawsend`. Они соответствуют формату параметров C функции `rawsend_dissect`.
+
+```
+function rawsend_dissect_ipfrag(dis, options)
+```
+Отправить диссект dis с фрагментацией, заданной в `options.ipfrag`. Если отсутствует - отправить без фрагментации.
+Использует кастомную функцию фрагментатор, если указано `options.ipfrag.ipfrag`.
+Отсылает фрагменты в обратном порядке, если указано `options.ipfrag.ipfrag_disorder`.
+
+```
+function rawsend_dissect_segmented(desync, dis, mss, options)
+```
+
+Отправить диссект dis с автоматической сегментацией на базе mss с применением `options.fooling` и `options.ipid`.
+ipid применяется к каждому фрагменту.
+
+```
+function rawsend_payload_segmented(desync, payload, seq, options)
+```
+
+Сконструировать временный диссект на базе desync.dis с опциональным замещением пейлоада на payload
+и опциональным смещением seq, применяя options, и отослать через rawsend_dissect_segmented.
+mss берется из desync.tcp_mss.
+Если options отсутствуют, они создаются на базе desync.arg.
+
+Стандартные options формируются следующим образом :
+* ipfrag, ipid, fooling принимают значение desync.arg
+* rawsend : repeats берется из desync.arg.repeats, ifout и fwmark берутся из desync.arg, если они там есть, либо из desync (то, что пришло в desync функцию)
+* reconstruct : берется только desync.arg.badsum, остальные опции не используются
+
+```
+function ipfrag2(dis, ipfrag_options)
+```
+
+Стандартная функция фрагментатор. Возвращает массив из двух диссектов-фрагментов исходного диссекта dis.
+Задействуется через rawsend_dissect_ipfrag, если отсутствует поле ipfrag в ipfrag_options.
+Отдельно вызывать эту функцию вряд ли понадобится.
+Если вам нужно резать IP пакет как-то иначе, вы можете по аналогии создать свой фрагментатор и указать его в ipfrag_options.
