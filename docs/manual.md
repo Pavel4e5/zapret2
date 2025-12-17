@@ -2298,6 +2298,7 @@ function wsize_rewrite(dis, arg)
 
 * arg: wsize - window size
 * arg: scale - scale factor
+* возвращает true, если какое-либо изменение было произведено
 
 ## Отсылка
 
