@@ -112,3 +112,4 @@ v0.7.3
 * nfqws2, zapret-lib : check tcp sequence range overflow
 * zapret-lib : seq compare functions
 * nfqws2: add l3_len, l4_len to dissect
+* nfqws2: fix broken l7proto profile rediscovery
