@@ -428,30 +428,34 @@ function stopif(ctx, desync)
 	end
 end
 
--- repeat following 'instances` `repeats` times, execute others with no tampering
+-- repeat following 'instances' 'repeats' times, execute others with no tampering
 -- arg: instances - number of following instances to be repeated. 1 by default
 -- arg: repeats - number of repeats
+-- arg: stop - do not replay remaining execution plan after 'instances'
 -- test case : --lua-desync=repeater:repeats=2:instances=2 --lua-desync=argdebug:v=1 --lua-desync=argdebug:v=2 --lua-desync=argdebug:v=3
 function repeater(ctx, desync)
 	local repeats = tonumber(desync.arg.repeats)
 	if not repeats then
 		error("repeat: missing 'repeats'")
 	end
-	local instances = tonumber(desync.arg.instances) or 1
 	orchestrate(ctx, desync)
-	if instances > #desync.plan then
-		instances = #desync.plan
-	end
+	local stop = desync.arg.stop
 	local verdict = VERDICT_PASS
+	local instances = tonumber(desync.arg.instances) or 1
+	local pop = {}
+	for i=1,instances do
+		pop[i] = plan_instance_pop(desync)
+	end
 	for r=1,repeats do
 		DLOG("repeater: "..r.."/"..repeats)
-		for i=1,instances do
-			verdict = plan_instance_execute(desync, verdict, desync.plan[i])
+		for i=1,#pop do
+			verdict = plan_instance_execute(desync, verdict, pop[i])
 		end
 	end
-	-- remove repeated instances
-	for i=1,instances do
-		table.remove(desync.plan, 1)
+
+	if stop then
+		plan_clear(desync)
+		return verdict
 	end
 	-- replay the rest
 	return verdict_aggregate(verdict, replay_execution_plan(desync))

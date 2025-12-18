@@ -190,7 +190,7 @@ function plan_instance_execute(desync, verdict, instance)
 	return verdict
 end
 function plan_instance_pop(desync)
-	return (desync.plan and #desync.plan>0) and table.remove(desync.plan, 1)
+	return (desync.plan and #desync.plan>0) and table.remove(desync.plan, 1) or nil
 end
 function plan_clear(desync)
 	while table.remove(desync.plan) do end
