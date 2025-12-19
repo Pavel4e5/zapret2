@@ -3332,7 +3332,7 @@ function cond_true(desync)
 #### cond_false
 
 ```
-function cond_true(desync)
+function cond_false(desync)
 ```
 
 Всегда false
