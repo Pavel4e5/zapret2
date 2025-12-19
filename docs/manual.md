@@ -1355,6 +1355,11 @@ mss дублируется в поле `desync.tcp_mss` независимо о�
 | IP6F_MORE_FRAG | number | бит "More fragment" поля ip6f_offlg из ipv6 fragment header | 0x0001 |
 | IPPROTO_IP<br>IPPROTO_IPV6<br>IPPROTO_ICMP<br>IPPROTO_TCP<br>IPPROTO_UDP<br>IPPROTO_ICMPV6<br>IPPROTO_HOPOPTS<br>IPPROTO_ROUTING<br>IPPROTO_FRAGMENT<br>IPPROTO_AH<br>IPPROTO_ESP<br>IPPROTO_DSTOPTS<br>IPPROTO_MH<br>IPPROTO_HIP<br>IPPROTO_SHIM6<br>IPPROTO_NONE | number | [номера IP протоколов](https://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml) | используются в ipv4 и ipv6 |
 
+### Стандартные блобы
+
+* fake_default_tls - фейковый tls_client_hello от firefox без kyber, SNI=www.microsoft.com
+* fake_default_http - http запрос к www.iana.org
+* fake_default_quic - 0x40 + 619*0x00
 
 ## C функции
 
