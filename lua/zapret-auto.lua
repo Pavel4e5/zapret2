@@ -158,6 +158,10 @@ function standard_failure_detector(desync, crec)
 						dis_reverse(dis)
 						dis.tcp.th_flags = TH_RST
 						dis.tcp.th_win = desync.track and desync.track.pos.reverse.tcp.winsize or 64
+						dis.tcp.options = {}
+						if dis.ip6 then
+							dis.ip6.ip6_flow = desync.track.pos.reverse.ip6_flow
+						end
 						DLOG("standard_failure_detector: sending RST to retransmitter")
 						rawsend_dissect(dis)
 					end

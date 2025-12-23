@@ -764,29 +764,18 @@ end
 
 -- reverses ip addresses, ports and seq/ack
 function dis_reverse(dis)
-	local temp
 	if dis.ip then
-		temp = dis.ip.ip_src
-		dis.ip.ip_src = dis.ip.ip_dst
-		dis.ip.ip_dst = temp
+		dis.ip.ip_src, dis.ip.ip_dst = dis.ip.ip_dst, dis.ip.ip_src
 	end
 	if dis.ip6 then
-		temp = dis.ip6.ip6_src
-		dis.ip6.ip6_src = dis.ip6.ip6_dst
-		dis.ip6.ip6_dst = temp
+		dis.ip6.ip6_src, dis.ip6.ip6_dst = dis.ip6.ip6_dst, dis.ip6.ip6_src
 	end
 	if dis.tcp then
-		temp = dis.tcp.th_sport
-		dis.tcp.th_sport = dis.tcp.th_dport
-		dis.tcp.th_dport = temp
-		temp = dis.tcp.th_ack
-		dis.tcp.th_ack = dis.tcp.th_seq
-		dis.tcp.th_seq = temp
+		dis.tcp.th_sport, dis.tcp.th_dport = dis.tcp.th_dport, dis.tcp.th_sport
+		dis.tcp.th_ack, dis.tcp.th_seq = dis.tcp.th_seq, dis.tcp.th_ack
 	end
 	if dis.udp then
-		temp = dis.udp.uh_sport
-		dis.udp.uh_sport = dis.udp.uh_dport
-		dis.udp.uh_dport = temp
+		dis.udp.uh_sport, dis.udp.uh_dport = dis.udp.uh_dport, dis.udp.uh_sport
 	end
 end
 
