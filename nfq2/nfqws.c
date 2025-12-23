@@ -538,7 +538,7 @@ static int dvt_main(void)
 
 					DLOG("\npacket: id=%u len=%zu ifin=%s ifout=%s\n", id, len, ifin, ifout);
 					modlen = sizeof(buf);
-					verdict = processPacketData(&mark, NULL, NULL, buf, len, buf, &modlen);
+					verdict = processPacketData(&mark, ifin, ifout, buf, len, buf, &modlen);
 					switch (verdict & VERDICT_MASK)
 					{
 					case VERDICT_PASS:

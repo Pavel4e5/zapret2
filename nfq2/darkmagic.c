@@ -1304,14 +1304,21 @@ bool rawsend(const struct sockaddr* dst,uint32_t fwmark,const char *ifout,const 
 {
 	WINDIVERT_ADDRESS wa;
 
-	if (!ifout) return false;
-
 	memset(&wa,0,sizeof(wa));
 	// pseudo interface id IfIdx.SubIfIdx
-	if (sscanf(ifout,"%u.%u",&wa.Network.IfIdx,&wa.Network.SubIfIdx)!=2)
+	if (ifout && *ifout)
 	{
-		errno = EINVAL;
-		return false;
+		if (sscanf(ifout,"%u.%u",&wa.Network.IfIdx,&wa.Network.SubIfIdx)!=2)
+		{
+			errno = EINVAL;
+			return false;
+		}
+	}
+	else
+	{
+		// 1 - typically loopback
+		wa.Network.IfIdx=1;
+		wa.Network.SubIfIdx=0;
 	}
 	wa.Outbound=1;
 	wa.IPChecksum=1;

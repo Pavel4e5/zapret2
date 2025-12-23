@@ -308,7 +308,7 @@ static bool auto_hostlist_retrans
 				tcp->th_win = ctrack->pos.server.winsize;
 				tcp_fix_checksum(tcp, sizeof(struct tcphdr), ip, ip6);
 
-				DLOG("sending RST to retransmitter\n");
+				DLOG("sending RST to retransmitter. ifname=%s\n", ifclient ? ifclient : "");
 				rawsend(client,0,ifclient,pkt,pktlen);
 			}
 			return true;
@@ -1271,6 +1271,7 @@ static uint8_t dpi_desync_tcp_packet_play(
 		}
 
 		process_retrans_fail(ctrack, dis, (struct sockaddr*)&src, ifin);
+
 		if (IsHttp(rdata_payload, rlen_payload))
 		{
 			DLOG("packet contains HTTP request\n");
