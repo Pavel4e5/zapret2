@@ -1276,10 +1276,11 @@ void lua_pushf_ctrack_pos(const t_ctrack *ctrack, const t_ctrack_position *pos)
 	lua_pushf_lint("pcounter", pos->pcounter);
 	lua_pushf_lint("pdcounter", pos->pdcounter);
 	lua_pushf_lint("pbcounter", pos->pbcounter);
+	if (pos->ip6flow) lua_pushf_int("ip6_flow", pos->ip6flow);
 	if (ctrack->ipproto == IPPROTO_TCP)
 	{
 		lua_pushliteral(params.L, "tcp");
-		lua_createtable(params.L, 0, 12);
+		lua_createtable(params.L, 0, 11);
 		lua_pushf_lint("seq0", pos->seq0);
 		lua_pushf_lint("seq", pos->seq_last);
 		lua_pushf_lint("rseq", pos->seq_last - pos->seq0);
@@ -1291,7 +1292,6 @@ void lua_pushf_ctrack_pos(const t_ctrack *ctrack, const t_ctrack_position *pos)
 		lua_pushf_int("winsize_calc", pos->winsize_calc);
 		lua_pushf_int("scale", pos->scale);
 		lua_pushf_int("mss", pos->mss);
-		lua_pushf_int("ip6_flow", pos->ip6flow);
 		lua_rawset(params.L,-3);
 	}
 
@@ -3005,6 +3005,8 @@ static void lua_init_const(void)
 		{"IPTOS_ECN_CE",IPTOS_ECN_CE},
 		{"IPTOS_DSCP_MASK",0xF0},
 		{"IP6F_MORE_FRAG",0x0001}, // in ip6.h it's defined depending of machine byte order
+		{"IPV6_FLOWLABEL_MASK",0x000FFFFF},
+		{"IPV6_FLOWINFO_MASK",0x0FFFFFFF},
 
 		{"IPPROTO_IP",IPPROTO_IP},
 		{"IPPROTO_IPV6",IPPROTO_IPV6},

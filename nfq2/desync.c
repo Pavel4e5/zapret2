@@ -297,7 +297,7 @@ static bool auto_hostlist_retrans
 					*ip6 = *dis->ip6;
 					ip6->ip6_plen = htons(sizeof(struct tcphdr));
 					ip6->ip6_nxt = IPPROTO_TCP;
-					ip6->ip6_ctlun.ip6_un1.ip6_un1_flow = htonl(ctrack->pos.server.ip6flow);
+					ip6->ip6_ctlun.ip6_un1.ip6_un1_flow = htonl(ctrack->pos.server.ip6flow ? ctrack->pos.server.ip6flow : 0x60000000);
 					tcp = (struct tcphdr*)(ip6+1);
 					*tcp = *dis->tcp;
 				}
