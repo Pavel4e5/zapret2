@@ -953,7 +953,7 @@ end
 
 -- nfqws1 : "--dpi-desync=tamper" for dht proto
 -- standard args : direction
--- arg : dn=N - message starts from "dN". 2 by default
+-- arg : dn=N - message starts from "dN". 3 by default
 function dht_dn(ctx, desync)
 	if not desync.dis.udp then
 		instance_cutoff_shim(ctx, desync)
@@ -961,7 +961,7 @@ function dht_dn(ctx, desync)
 	end
 	direction_cutoff_opposite(ctx, desync)
 	if desync.l7payload=="dht" and direction_check(desync) then
-		local N = tonumber(desync.arg.dn) or 2
+		local N = tonumber(desync.arg.dn) or 3
 		-- remove "d1" from the start not breaking bencode
 		local prefix = "d"..tostring(N)..":"..string.rep("0",N).."1:x"
 		desync.dis.payload = prefix..string.sub(desync.dis.payload,2)
