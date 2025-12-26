@@ -3,6 +3,8 @@
 
 # can override in config :
 NFQWS_OPT_DESYNC_DHT="${NFQWS_OPT_DESYNC_DHT:---payload dht --lua-desync=dht_dn}"
+# set it to "keepalive" to fool all packets, not just the first. or set number of packets to be fooled.
+NFQWS_OPT_DHT_PKT_OUT=${NFQWS_OPT_DHT_PKT_OUT:-20}
 
 alloc_dnum DNUM_DHT4ALL
 alloc_qnum QNUM_DHT4ALL
@@ -19,7 +21,7 @@ zapret_custom_firewall()
 	# $1 - 1 - run, 0 - stop
 
 	local f uf4 uf6
-	local first_packet_only="$ipt_connbytes 1:1"
+	local first_packet_only=$(ipt_first_packets $NFQWS_OPT_DHT_PKT_OUT)
 
 	f='-p udp -m u32 --u32'
 	uf4='0>>22&0x3C@4>>16=13:0xFFFF&&0>>22&0x3C@8>>16=0x6431:0x6432'
@@ -31,7 +33,7 @@ zapret_custom_firewall_nft()
 	# stop logic is not required
 
         local f
-        local first_packet_only="$nft_connbytes 1"
+	local first_packet_only=$(nft_first_packets $NFQWS_OPT_DHT_PKT_OUT)
 
         f="udp length ge 13 meta l4proto udp @ih,0,16 0x6431-0x6432"
         nft_fw_nfqws_post "$f $first_packet_only" "$f $first_packet_only" $QNUM_DHT4ALL
