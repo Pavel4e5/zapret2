@@ -138,7 +138,7 @@ void HostFailPoolDump(hostfail_pool *p)
 static struct str_list *strlist_entry_alloc(const char *str)
 {
 	struct str_list *entry = malloc(sizeof(struct str_list));
-	if (!entry) return false;
+	if (!entry) return NULL;
 	if (str)
 	{
 		if (!(entry->str = strdup(str)))
@@ -290,7 +290,7 @@ void funclist_destroy(struct func_list_head *head)
 static struct func_list *funclist_entry_alloc(const char *func)
 {
 	struct func_list *entry = malloc(sizeof(struct func_list));
-	if (!entry) return false;
+	if (!entry) return NULL;
 	entry->func = strdup(func);
 	if (!entry->func)
 	{
@@ -324,7 +324,7 @@ static struct func_list *funclist_entry_copy(const struct func_list *entry)
 	if (!str2list_copy(&e2->args, &entry->args))
 	{
 		funclist_entry_destroy(e2);
-		return false;
+		return NULL;
 	}
 	return e2;
 }
@@ -353,7 +353,7 @@ struct hostlist_file *hostlist_files_add(struct hostlist_files_head *head, const
 			if (!(entry->filename = strdup(filename)))
 			{
 				free(entry);
-				return false;
+				return NULL;
 			}
 		}
 		else
@@ -619,7 +619,7 @@ struct ipset_file *ipset_files_add(struct ipset_files_head *head, const char *fi
 			if (!(entry->filename = strdup(filename)))
 			{
 				free(entry);
-				return false;
+				return NULL;
 			}
 		}
 		else
