@@ -1475,6 +1475,7 @@ static void quic_reasm_cancel(t_ctrack *ctrack, const char *reason)
 static void udp_standard_protocol_probe(const uint8_t *data_payload, size_t len_payload, t_ctrack *ctrack, t_l7proto *l7proto, t_l7payload *l7payload)
 {
 	t_protocol_probe testers[] = {
+		{L7P_QUIC_INITIAL,L7_QUIC,IsQUICInitial,false},
 		{L7P_DISCORD_IP_DISCOVERY,L7_DISCORD,IsDiscordIpDiscoveryRequest,false},
 		{L7P_STUN,L7_STUN,IsStunMessage,false},
 		{L7P_DNS_QUERY,L7_DNS,IsDNSQuery,false},
