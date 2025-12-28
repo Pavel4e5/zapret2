@@ -1,8 +1,6 @@
 -- nfqws2 C functions tests
 -- to run : --lua-init=@zapret-lib.lua --lua-init=@zapret-tests.lua --lua-init="test_all()"
 
-math.randomseed(bitxor(getpid(),gettid(),clock_gettime()))
-
 function test_assert(b)
 	assert(b, "test failed")
 end
