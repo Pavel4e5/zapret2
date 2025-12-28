@@ -1757,10 +1757,10 @@ function swap32(u32)
 function swap48(u48)
 ```
 
-#### uXadd
-
 Инвертируют порядок следования байт в u16, u32 или u48. Если в вашей структуре порядок байт little endian,
 можно использовать uX/buX + swap.
+
+#### uXadd
 
 ```
 function u8add(u8_1, u8_2, ...., u8_N)
