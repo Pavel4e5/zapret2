@@ -287,6 +287,44 @@ function wssize(ctx, desync)
 	return verdict
 end
 
+-- nfqws1 : not available
+-- standard args : direction
+-- arg: blob = blob name to store cloned tls client hello (stored in desync, not global)
+-- arg: snt - server name type value in SNI
+function tls_client_hello_clone(ctx, desync)
+	if not desync.dis.tcp then
+		instance_cutoff_shim(ctx, desync)
+		return
+	end
+	direction_cutoff_opposite(ctx, desync)
+	if desync.l7payload=="tls_client_hello" and direction_check(desync) then
+		if not desync.arg.blob then
+			error("fake: 'blob' arg required")
+		end
+		local tdis = tls_dissect(desync.reasm_data or desync.dis.payload)
+		if not tdis then
+			DLOG("tls_client_hello_clone: could not dissect tls")
+			return
+		end
+		if not tdis.handshake or not tdis.handshake[TLS_HANDSHAKE_TYPE_CLIENT] then
+			DLOG("tls_client_hello_clone: handshake not dissected")
+			return
+		end
+		if desync.arg.snt then
+			local k = array_field_search(tdis.handshake[TLS_HANDSHAKE_TYPE_CLIENT].dis.ext, "type", 0)
+			if not k then
+				DLOG("tls_client_hello_clone: no SNI extension")
+				return
+			end
+			for i,v in pairs(tdis.handshake[1].dis.ext[k].dis.list) do
+				v.type=desync.arg.snt
+			end
+		end
+		desync[desync.arg.blob] = tls_reconstruct(tdis)
+		DLOG("tls_client_hello_clone: cloned to desync."..desync.arg.blob)
+	end
+end
+
 -- nfqws1 : "--dpi-desync=syndata"
 -- standard args : fooling, rawsend, reconstruct, ipfrag
 -- arg : blob=<blob> - fake payload. must fit to single packet. no segmentation possible. default - 16 zero bytes.
@@ -340,6 +378,7 @@ end
 -- nfqws1 : "--dpi-desync=fake"
 -- standard args : direction, payload, fooling, ip_id, rawsend, reconstruct, ipfrag
 -- arg : blob=<blob> - fake payload
+-- arg : optional - skip if blob is absent
 -- arg : tls_mod=<list> - comma separated list of tls mods : rnd,rndsni,sni=<str>,dupsid,padencap . sni=%var is supported
 function fake(ctx, desync)
 	direction_cutoff_opposite(ctx, desync)
@@ -348,6 +387,10 @@ function fake(ctx, desync)
 		if replay_first(desync) then
 			if not desync.arg.blob then
 				error("fake: 'blob' arg required")
+			end
+			if desync.arg.optional and not blob_exist(desync, desync.arg.blob) then
+				DLOG("fake: blob '"..desync.arg.blob.."' not found. skipped")
+				return
 			end
 			local fake_payload = blob(desync, desync.arg.blob)
 			if desync.reasm_data and desync.arg.tls_mod then
@@ -368,6 +411,7 @@ end
 -- arg : seqovl=N . decrease seq number of the first segment by N and fill N bytes with pattern (default - all zero)
 -- arg : seqovl_pattern=<blob> . override pattern
 -- arg : blob=<blob> - use this data instead of desync.dis.payload
+-- arg : optional - skip if blob is absent. use zero pattern if seqovl_pattern blob is absent
 -- arg : nodrop - do not drop current dissect
 function multisplit(ctx, desync)
 	if not desync.dis.tcp then
@@ -375,7 +419,10 @@ function multisplit(ctx, desync)
 		return
 	end
 	direction_cutoff_opposite(ctx, desync)
-	-- by default process only outgoing known payloads
+	if desync.arg.optional and desync.arg.blob and not blob_exist(desync, desync.arg.blob) then
+		DLOG("multisplit: blob '"..desync.arg.blob.."' not found. skipped")
+		return
+	end
 	local data = blob_or_def(desync, desync.arg.blob) or desync.reasm_data or desync.dis.payload
 	if #data>0 and direction_check(desync) and payload_check(desync) then
 		if replay_first(desync) then
@@ -393,7 +440,14 @@ function multisplit(ctx, desync)
 					local seqovl=0
 					if i==0 and desync.arg.seqovl and tonumber(desync.arg.seqovl)>0 then
 						seqovl = tonumber(desync.arg.seqovl)
-						local pat = desync.arg.seqovl_pattern and blob(desync,desync.arg.seqovl_pattern) or "\x00"
+						local pat="\x00"
+						if desync.arg.seqovl_pattern then
+							if desync.arg.optional and not blob_exist(desync, desync.arg.seqovl_pattern) then
+								DLOG("multisplit: blob '"..desync.arg.seqovl_pattern.."' not found. using zero pattern")
+							else
+								pat = blob(desync,desync.arg.seqovl_pattern)
+							end
+						end
 						part = pattern(pat,1,seqovl)..part
 					end
 					if b_debug then DLOG("multisplit: sending part "..(i+1).." "..(pos_start-1).."-"..(pos_end-1).." len="..#part.." seqovl="..seqovl.." : "..hexdump_dlog(part)) end
@@ -445,7 +499,14 @@ function multidisorder_send(desync, data, seqovl, pos)
 				DLOG("multidisorder: seqovl cancelled because seqovl "..(seqovl-1).." is not less than the first split pos "..(pos[1]-1))
 			else
 				ovl = seqovl - 1
-				local pat = desync.arg.seqovl_pattern and blob(desync,desync.arg.seqovl_pattern) or "\x00"
+				local pat="\x00"
+				if desync.arg.seqovl_pattern then
+					if desync.arg.optional and not blob_exist(desync, desync.arg.seqovl_pattern) then
+						DLOG("multidisorder: blob '"..desync.arg.seqovl_pattern.."' not found. using zero pattern")
+					else
+						pat = blob(desync,desync.arg.seqovl_pattern)
+					end
+				end
 				part = pattern(pat,1,ovl)..part
 			end
 		end
@@ -464,6 +525,7 @@ end
 -- arg : seqovl=N . decrease seq number of the second segment in the original order by N and fill N bytes with pattern (default - all zero). N must be less than the first split pos.
 -- arg : seqovl_pattern=<blob> . override pattern
 -- arg : blob=<blob> - use this data instead of reasm_data
+-- arg : optional - skip if blob is absent. use zero pattern if seqovl_pattern blob is absent
 -- arg : nodrop - do not drop current dissect
 function multidisorder(ctx, desync)
 	if not desync.dis.tcp then
@@ -471,7 +533,10 @@ function multidisorder(ctx, desync)
 		return
 	end
 	direction_cutoff_opposite(ctx, desync)
-	-- by default process only outgoing known payloads
+	if desync.arg.optional and desync.arg.blob and not blob_exist(desync, desync.arg.blob) then
+		DLOG("multidisorder: blob '"..desync.arg.blob.."' not found. skipped")
+		return
+	end
 	local data = blob_or_def(desync, desync.arg.blob) or desync.reasm_data or desync.dis.payload
 	if #data>0 and direction_check(desync) and payload_check(desync) then
 		if replay_first(desync) then
@@ -512,6 +577,7 @@ end
 -- arg : pos=<postmarker list> . position marker list. example : "1,host,midsld+1,-10"
 -- arg : seqovl=N . decrease seq number of the second segment in the original order by N and fill N bytes with pattern (default - all zero). N must be less than the first split pos.
 -- arg : seqovl_pattern=<blob> . override pattern
+-- arg : optional - use zero pattern if seqovl_pattern blob is absent
 function multidisorder_legacy(ctx, desync)
 	if not desync.dis.tcp then
 		instance_cutoff_shim(ctx, desync)
@@ -567,6 +633,7 @@ end
 -- arg : nofake1, nofake2 - do not send individual fakes
 -- arg : disorder_after=<posmarker> - send after_host part in 2 disordered segments. if posmarker is empty string use marker "-1"
 -- arg : blob=<blob> - use this data instead of desync.dis.payload
+-- arg : optional - skip if blob is absent
 -- arg : nodrop - do not drop current dissect
 function hostfakesplit(ctx, desync)
 	if not desync.dis.tcp then
@@ -574,7 +641,10 @@ function hostfakesplit(ctx, desync)
 		return
 	end
 	direction_cutoff_opposite(ctx, desync)
-	-- by default process only outgoing known payloads
+	if desync.arg.optional and desync.arg.blob and not blob_exist(desync, desync.arg.blob) then
+		DLOG("hostfakesplit: blob '"..desync.arg.blob.."' not found. skipped")
+		return
+	end
 	local data = blob_or_def(desync, desync.arg.blob) or desync.reasm_data or desync.dis.payload
 	if #data>0 and direction_check(desync) and payload_check(desync) then
 		if replay_first(desync) then
@@ -680,6 +750,7 @@ end
 -- arg : seqovl=N . decrease seq number of the first segment by N and fill N bytes with pattern (default - all zero)
 -- arg : seqovl_pattern=<blob> . override seqovl pattern
 -- arg : blob=<blob> - use this data instead of reasm_data
+-- arg : optional - skip if blob is absent. use zero pattern if seqovl_pattern blob is absent
 -- arg : nodrop - do not drop current dissect
 function fakedsplit(ctx, desync)
 	if not desync.dis.tcp then
@@ -687,7 +758,10 @@ function fakedsplit(ctx, desync)
 		return
 	end
 	direction_cutoff_opposite(ctx, desync)
-	-- by default process only outgoing known payloads
+	if desync.arg.optional and desync.arg.blob and not blob_exist(desync, desync.arg.blob) then
+		DLOG("fakedsplit: blob '"..desync.arg.blob.."' not found. skipped")
+		return
+	end
 	local data = blob_or_def(desync, desync.arg.blob) or desync.reasm_data or desync.dis.payload
 	if #data>0 and direction_check(desync) and payload_check(desync) then
 		if replay_first(desync) then
@@ -719,7 +793,14 @@ function fakedsplit(ctx, desync)
 					local seqovl=0
 					if desync.arg.seqovl and tonumber(desync.arg.seqovl)>0 then
 						seqovl = tonumber(desync.arg.seqovl)
-						pat = desync.arg.seqovl_pattern and blob(desync,desync.arg.seqovl_pattern) or "\x00"
+						pat="\x00"
+						if desync.arg.seqovl_pattern then
+							if desync.arg.optional and not blob_exist(desync, desync.arg.seqovl_pattern) then
+								DLOG("fakedsplit: blob '"..desync.arg.seqovl_pattern.."' not found. using zero pattern")
+							else
+								pat = blob(desync,desync.arg.seqovl_pattern)
+							end
+						end
 						part = pattern(pat,1,seqovl)..part
 					end
 					if b_debug then DLOG("fakedsplit: sending real part 1 : 0-"..(pos-2).." len="..#part.." seqovl="..seqovl.." : "..hexdump_dlog(part)) end
@@ -773,6 +854,7 @@ end
 -- arg : seqovl=N . decrease seq number of the second segment by N and fill N bytes with pattern (default - all zero). N must be less than the split pos.
 -- arg : seqovl_pattern=<blob> . override seqovl pattern
 -- arg : blob=<blob> - use this data instead of desync.dis.payload
+-- arg : optional - skip if blob is absent. use zero pattern if seqovl_pattern blob is absent
 -- arg : nodrop - do not drop current dissect
 function fakeddisorder(ctx, desync)
 	if not desync.dis.tcp then
@@ -780,7 +862,10 @@ function fakeddisorder(ctx, desync)
 		return
 	end
 	direction_cutoff_opposite(ctx, desync)
-	-- by default process only outgoing known payloads
+	if desync.arg.optional and desync.arg.blob and not blob_exist(desync, desync.arg.blob) then
+		DLOG("fakeddisorder: blob '"..desync.arg.blob.."' not found. skipped")
+		return
+	end
 	local data = blob_or_def(desync, desync.arg.blob) or desync.reasm_data or desync.dis.payload
 	if #data>0 and direction_check(desync) and payload_check(desync) then
 		if replay_first(desync) then
@@ -817,7 +902,14 @@ function fakeddisorder(ctx, desync)
 								DLOG("fakeddisorder: seqovl cancelled because seqovl "..seqovl.." is not less than the split pos "..(pos-1))
 								seqovl = 0
 							else
-								local pat = desync.arg.seqovl_pattern and blob(desync,desync.arg.seqovl_pattern) or "\x00"
+								local pat="\x00"
+								if desync.arg.seqovl_pattern then
+									if desync.arg.optional and not blob_exist(desync, desync.arg.seqovl_pattern) then
+										DLOG("fakeddisorder: blob '"..desync.arg.seqovl_pattern.."' not found. using zero pattern")
+									else
+										pat = blob(desync,desync.arg.seqovl_pattern)
+									end
+								end
 								part = pattern(pat,1,seqovl)..part
 							end
 						else
@@ -874,6 +966,7 @@ end
 -- arg : seqovl=N . decrease seq number of the first segment by N and fill N bytes with pattern (default - all zero)
 -- arg : seqovl_pattern=<blob> . override pattern
 -- arg : blob=<blob> - use this data instead of desync.dis.payload
+-- arg : optional - skip if blob is absent. use zero pattern if seqovl_pattern blob is absent
 function tcpseg(ctx, desync)
 	if not desync.dis.tcp then
 		instance_cutoff_shim(ctx, desync)
@@ -883,7 +976,10 @@ function tcpseg(ctx, desync)
 	if not desync.arg.pos then
 		error("tcpseg: no pos specified")
 	end
-	-- by default process only outgoing known payloads
+	if desync.arg.optional and desync.arg.blob and not blob_exist(desync, desync.arg.blob) then
+		DLOG("tcpseg: blob '"..desync.arg.blob.."' not found. skipped")
+		return
+	end
 	local data = blob_or_def(desync, desync.arg.blob) or desync.reasm_data or desync.dis.payload
 	if #data>0 and direction_check(desync) and payload_check(desync) then
 		if replay_first(desync) then
@@ -897,7 +993,14 @@ function tcpseg(ctx, desync)
 				local seqovl=0
 				if desync.arg.seqovl and tonumber(desync.arg.seqovl)>0 then
 					seqovl = tonumber(desync.arg.seqovl)
-					local pat = desync.arg.seqovl_pattern and blob(desync,desync.arg.seqovl_pattern) or "\x00"
+					local pat="\x00"
+					if desync.arg.seqovl_pattern then
+						if desync.arg.optional and not blob_exist(desync, desync.arg.seqovl_pattern) then
+							DLOG("tcpseg: blob '"..desync.arg.seqovl_pattern.."' not found. using zero pattern")
+						else
+							pat = blob(desync,desync.arg.seqovl_pattern)
+						end
+					end
 					part = pattern(pat,1,seqovl)..part
 				end
 				if b_debug then DLOG("tcpseg: sending "..(pos[1]-1).."-"..(pos[2]-1).." len="..#part.." seqovl="..seqovl.." : "..hexdump_dlog(part)) end

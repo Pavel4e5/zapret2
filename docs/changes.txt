@@ -134,9 +134,11 @@ v0.7.6
 * zapret-auto: stadard_failure_detector reset retransmitter to break long wait
 * nfqws2, init.d, windivert : dht and wg detection changes
 
-v0.7.7
+v0.8.0
 
 * init.d: 50-dht4all NFQWS_OPT_DHT_PKT_OUT
-* nfqws2: support 48-bit arithmetics
+* nfqws2: (LUA_COMPAT_VER=4) support 48-bit arithmetics
 * github actions: remove arm-old target - luajit fail reason revealed
 * nfqws2: do not treat quic handshake messages as initials
+* zapret-lib: tls dissector/reconstructor
+* zapret-antidpi: tls_client_hello_clone
