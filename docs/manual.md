@@ -2237,9 +2237,9 @@ function pktdebug(ctx, desync)
 function argdebug(ctx, desync)
 ```
 
-### posdebug
-
 Вывести таблицу аргументов в debug log.
+
+### posdebug
 
 ```
 function posdebug(ctx, desync)
