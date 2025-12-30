@@ -144,3 +144,11 @@ v0.8.0
 * zapret-antidpi: tls_client_hello_clone
 * zapret-antidpi: "optional" arg to blob taking functions
 * nfqws2: support gzipped lua file. auto use script.lua.gz
+
+v0.8.1
+
+* nfqws2: fix bu48 crash and wrong results in bitset
+* zapret-lib: http_reconstruct_req
+* zapret-antidpi: http_unixeol
+* blockcheck2: http_unixeol test
+

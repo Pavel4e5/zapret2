@@ -158,6 +158,7 @@
     - [http\_hostcase](#http_hostcase)
     - [http\_domcase](#http_domcase)
     - [http\_methodeol](#http_methodeol)
+    - [http\_unixeol](#http_unixeol)
   - [Замена window size](#замена-window-size)
     - [wsize](#wsize)
     - [wssize](#wssize)
@@ -2375,7 +2376,11 @@ function blob_or_def(desync, name, def)
 
 ```
 function barray(a, packer)
+function btable(a, packer)
 ```
+
+- barray использует только числовые индексы, начиная с 1. порядок соблюдается
+- btable использует все индексы, но не гарантирует порядок
 
 Упаковка элементов массива a в порядке возрастания индекса от 1 до последнего.
 `packer` - функция, берущая элемент a и возвращающая raw string.
@@ -2465,12 +2470,15 @@ function dissect_nld(domain, level)
 ```
 function http_dissect_req(http)
 function http_dissect_reply(http)
+function http_reconstruct_req(hdis)
 ```
 
 Разборка HTTP запроса или ответа http. http представляет собой многострочный текст.
 Разборка представляет собой таблицу с вложенными подтаблицами.
 В заголовках выдаются позиции начала и конца названия заголовка и самого значения.
 Названия полей в таблице headers соответствуют названию заголовков в нижнем регисте. Все позиции - внутри строки http.
+
+Реконструктор http запроса берет таблицу-разбор и воссоздает raw string.
 
 <details>
   <summary><b>Пример разборки http запроса `http://testhost.com/testuri`</b></summary>
@@ -3453,6 +3461,16 @@ function http_methodeol(ctx, desync)
 - arg: [standard direction](#standard-direction)
 
 Вставляет '\r\n' перед методом, отрезая 2 последних символа из содержимого заголовка `User-Agent:`. Работает только на nginx, остальные сервера ломает.
+
+### http_unixeol
+
+```
+function http_unixeol(ctx, desync)
+```
+
+- arg: [standard direction](#standard-direction)
+
+Заменяет перевод строки 0D0A на 0A. Разницу в длине добавляет пробелами в конец хедера "User-Agent". Работает только на nginx, остальные сервера ломает.
 
 ## Замена window size
 
