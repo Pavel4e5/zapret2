@@ -40,7 +40,7 @@ pktws_check_http()
 		for ff in $fake 0x00000000; do
 			pktws_curl_test_update $testf $domain ${FAKE_HTTP:+--blob=fake_http:@"$FAKE_HTTP" }$PAYLOAD --lua-desync=fake:blob=$ff:$fooling:repeats=$FAKE_REPEATS && ok=1
 			# duplicate SYN with MD5
-			contains "$fooling" tcp_md5 && pktws_curl_test_update $testf $domain ${FAKE_HTTP:+--blob=$fake:@"$FAKE_HTTP" }$PAYLOAD --lua-desync=fake:blob=$ff:$fooling:repeats=$FAKE_REPEATS --payload empty "--out-range=<s1" --lua-desync=send:tcp_md5 && ok=1
+			contains "$fooling" tcp_md5 && pktws_curl_test_update $testf $domain ${FAKE_HTTP:+--blob=$fake:@"$FAKE_HTTP" }$PAYLOAD --lua-desync=fake:blob=$ff:$fooling:repeats=$FAKE_REPEATS --payload=empty "--out-range=<s1" --lua-desync=send:tcp_md5 && ok=1
 		done
 	done
 	for ttl in $attls; do

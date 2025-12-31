@@ -5,7 +5,7 @@ pktws_check_http()
 	# $1 - test function
 	# $2 - domain
 
-	local PAYLOAD="--payload http_req" repeats ok
+	local PAYLOAD="--payload=http_req" repeats ok
 
 	for repeats in 1 20 100 260; do
 		# send starting bytes of original payload
@@ -20,7 +20,7 @@ pktws_check_https_tls12()
 	# $1 - test function
 	# $2 - domain
 
-	local PAYLOAD="--payload tls_client_hello" repeats ok
+	local PAYLOAD="--payload=tls_client_hello" repeats ok
 
 	for repeats in 1 20 100 260; do
 		# send starting bytes of original payload

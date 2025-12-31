@@ -42,7 +42,7 @@ pktws_check_faked()
 			for split in $splits; do
 				pktws_curl_test_update $testf $domain ${FAKED_PATTERN:+--blob=faked_pat:@"$FAKED_PATTERN" }$pre $PAYLOAD --lua-desync=$splitf:${FAKED_PATTERN:+pattern=faked_pat:}pos=$split:$fooling && ok=1
 				# duplicate SYN with MD5
-				contains "$fooling" tcp_md5 && pktws_curl_test_update $testf $domain ${FAKED_PATTERN:+--blob=faked_pat:@"$FAKED_PATTERN" }$pre $PAYLOAD --lua-desync=$splitf:${FAKED_PATTERN:+pattern=faked_pat:}pos=$split:$fooling:repeats=$FAKE_REPEATS --payload empty --out-range="<s1" --lua-desync=send:tcp_md5 && ok=1
+				contains "$fooling" tcp_md5 && pktws_curl_test_update $testf $domain ${FAKED_PATTERN:+--blob=faked_pat:@"$FAKED_PATTERN" }$pre $PAYLOAD --lua-desync=$splitf:${FAKED_PATTERN:+pattern=faked_pat:}pos=$split:$fooling:repeats=$FAKE_REPEATS --payload=empty --out-range="<s1" --lua-desync=send:tcp_md5 && ok=1
 			done
 		done
 		for ttl in $attls; do

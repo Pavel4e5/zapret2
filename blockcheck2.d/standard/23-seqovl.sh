@@ -5,7 +5,7 @@ pktws_check_http()
 
 	[ "$NOTEST_SEQOVL_HTTP" = 1 ] && { echo "SKIPPED"; return; }
 
-	local PAYLOAD="--payload http_req"
+	local PAYLOAD="--payload=http_req"
 
 	local ok pat= split f f2
 
@@ -37,7 +37,7 @@ pktws_seqovl_tests_tls()
 	local ok ok_any
 	local testf=$1 domain="$2" pre="$3"
 	local pat rnd_mod padencap_mod split f f2
-	local PAYLOAD="--payload tls_client_hello"
+	local PAYLOAD="--payload=tls_client_hello"
 
 	pat=${SEQOVL_PATTERN_HTTPS:+seqovl_pat}
 	pat=${pat:-fake_default_tls}

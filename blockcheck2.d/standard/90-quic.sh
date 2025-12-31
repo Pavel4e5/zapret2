@@ -8,7 +8,7 @@ pktws_check_http3()
 	[ "$NOTEST_QUIC" = 1 ] && { echo "SKIPPED"; return; }
 
 	local repeats fake pos fool
-	local PAYLOAD="--payload quic_initial"
+	local PAYLOAD="--payload=quic_initial"
 
 	if [ -n "$FAKE_QUIC" ]; then
 		fake=fake_quic

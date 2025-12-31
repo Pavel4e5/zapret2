@@ -26,7 +26,7 @@ pktws_check_http()
 	# $1 - test function
 	# $2 - domain
 	local splits_http='method+2 midsld method+2,midsld'
-	local PAYLOAD="--payload http_req"
+	local PAYLOAD="--payload=http_req"
 
 	[ "$NOTEST_MULTI_HTTP" = 1 ] && { echo "SKIPPED"; return; }
 
@@ -39,7 +39,7 @@ pktws_check_https_tls()
 	# $2 - domain
 	# $3 - PRE args for nfqws2
 	local splits_tls='2 1 sniext+1 sniext+4 host+1 midsld 1,midsld 1,midsld,1220 1,sniext+1,host+1,midsld-2,midsld,midsld+2,endhost-1'
-	local PAYLOAD="--payload tls_client_hello"
+	local PAYLOAD="--payload=tls_client_hello"
 
 	[ "$NOTEST_MULTI_HTTPS" = 1 ] && { echo "SKIPPED"; return; }
 
