@@ -1,4 +1,5 @@
 # this custom script feeds dns response data to main nfqws2 instance
+# DISABLE_IPV{4,6} filters are not used intentionally. despite of not having wan ipv6 it's possible to query LAN DNS server over local ipv6
 
 zapret_custom_firewall()
 {
@@ -11,13 +12,13 @@ zapret_custom_firewall()
 
 	# router
 	for lan in $lanifs; do
-		[ "$DISABLE_IPV4" = 1 ] || ipt_add_del $1 FORWARD -o $lan $filt $jump
-		[ "$DISABLE_IPV6" = 1 ] || ipt6_add_del $1 FORWARD -o $lan $filt $jump
+		ipt_add_del $1 FORWARD -o $lan $filt $jump
+		ipt6_add_del $1 FORWARD -o $lan $filt $jump
 	done
 	# dns client server
 	for chain in INPUT OUTPUT ; do
-		[ "$DISABLE_IPV4" = 1 ] || ipt_add_del $1 $chain $filt $jump
-		[ "$DISABLE_IPV6" = 1 ] || ipt6_add_del $1 $chain $filt $jump
+		ipt_add_del $1 $chain $filt $jump
+		ipt6_add_del $1 $chain $filt $jump
 	done
 }
 
