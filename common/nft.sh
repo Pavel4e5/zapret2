@@ -163,10 +163,10 @@ cat << EOF | nft -f -
 	add chain inet $ZAPRET_NFT_TABLE postnat_hook { type filter hook postrouting priority 101; }
 	flush chain inet $ZAPRET_NFT_TABLE postnat_hook
 
-	add chain inet $ZAPRET_NFT_TABLE prerouting_hook { type filter hook prerouting priority -99; }
-	flush chain inet $ZAPRET_NFT_TABLE prerouting_hook
 	add chain inet $ZAPRET_NFT_TABLE prerouting
 	flush chain inet $ZAPRET_NFT_TABLE prerouting
+	add chain inet $ZAPRET_NFT_TABLE prerouting_hook { type filter hook prerouting priority -99; }
+	flush chain inet $ZAPRET_NFT_TABLE prerouting_hook
 
 	add chain inet $ZAPRET_NFT_TABLE prenat_hook { type filter hook prerouting priority -101; }
 	flush chain inet $ZAPRET_NFT_TABLE prenat_hook
@@ -185,6 +185,7 @@ cat << EOF | nft -f -
 
 	add set inet $ZAPRET_NFT_TABLE wanif { type ifname; }
 	add set inet $ZAPRET_NFT_TABLE wanif6 { type ifname; }
+	add set inet $ZAPRET_NFT_TABLE lanif { type ifname; }
 
 	add chain inet $ZAPRET_NFT_TABLE ruletest
 	flush chain inet $ZAPRET_NFT_TABLE ruletest
@@ -230,8 +231,6 @@ cat << EOF | nft -f - 2>/dev/null
 	delete chain inet $ZAPRET_NFT_TABLE flow_offload_always
 	delete chain inet $ZAPRET_NFT_TABLE ruletest
 EOF
-# unfortunately this approach breaks udp desync of the connection initiating packet (new, first one)
-#	delete chain inet $ZAPRET_NFT_TABLE predefrag
 }
 nft_del_flowtable()
 {
@@ -257,14 +256,17 @@ nft_create_or_update_flowtable()
 nft_flush_ifsets()
 {
 cat << EOF | nft -f -  2>/dev/null
-	flush set inet $ZAPRET_NFT_TABLE wanif
-	flush set inet $ZAPRET_NFT_TABLE wanif6
+
+	for set in wanif wanif6 lanif; do
+		flush set inet $ZAPRET_NFT_TABLE $set
+	done
 EOF
 }
 nft_list_ifsets()
 {
-	nft list set inet $ZAPRET_NFT_TABLE wanif
-	nft list set inet $ZAPRET_NFT_TABLE wanif6
+	for set in wanif wanif6 lanif; do
+		nft list set inet $ZAPRET_NFT_TABLE $set
+	done
 	nft list flowtable inet $ZAPRET_NFT_TABLE ft 2>/dev/null
 }
 
@@ -402,7 +404,9 @@ nft_fill_ifsets()
 	# calling all in one shot helps not to waste cpu time many times
 
 	script="flush set inet $ZAPRET_NFT_TABLE wanif
-flush set inet $ZAPRET_NFT_TABLE wanif6"
+flush set inet $ZAPRET_NFT_TABLE wanif6
+flush set inet $ZAPRET_NFT_TABLE lanif"
+	nft_script_add_ifset_element lanif "$1"
 
 	[ "$DISABLE_IPV4" = "1" ] || nft_script_add_ifset_element wanif "$2"
 	[ "$DISABLE_IPV6" = "1" ] || nft_script_add_ifset_element wanif6 "$3"
