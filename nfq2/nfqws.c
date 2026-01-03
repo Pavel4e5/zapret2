@@ -58,7 +58,8 @@ bool bQuit = false;
 
 static void onhup(int sig)
 {
-	printf("HUP received ! Lists will be reloaded.\n");
+	const char *msg = "HUP received ! Lists will be reloaded.\n";
+	size_t wr = write(1, msg, strlen(msg));
 	bReload = true;
 }
 static void ReloadCheck()

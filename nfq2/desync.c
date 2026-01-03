@@ -1492,7 +1492,7 @@ static void udp_standard_protocol_probe(const uint8_t *data_payload, size_t len_
 	protocol_probe(testers, sizeof(testers) / sizeof(*testers), data_payload, len_payload, ctrack, l7proto, l7payload);
 }
 
-static const uint8_t *dns_extract_name(const uint8_t *a, const uint8_t *b, const uint8_t *e, uint8_t *name, size_t name_size)
+static const uint8_t *dns_extract_name(const uint8_t *a, const uint8_t *b, const uint8_t *e, char *name, size_t name_size)
 {
 	size_t nl, off;
 	const uint8_t *p;
