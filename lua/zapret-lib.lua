@@ -1484,7 +1484,7 @@ function gzip_file(filename, data, level, memlevel, compress_block_size)
 
 	gz = gzip_init(nil, level, memlevel)
 	if not gz then
-		error("gunzip_file: stream init error")
+		error("gzip_file: stream init error")
 	end
 	local off=1, block_size
 	repeat
