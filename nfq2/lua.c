@@ -44,7 +44,7 @@ static void lua_check_argc_range(lua_State *L, const char *where, int argc_min, 
 int lua_absindex(lua_State *L, int idx)
 {
 	// convert relative index to absolute
-	return idx<0 ? lua_gettop(params.L) + idx + 1 : idx;
+	return idx<0 ? lua_gettop(L) + idx + 1 : idx;
 }
 #endif
 
@@ -512,7 +512,7 @@ err:
 
 
 
-static SHAversion lua_hash_type(const char *s_hash_type)
+static SHAversion lua_hash_type(lua_State *L, const char *s_hash_type)
 {
 	SHAversion sha_ver;
 	if (!strcmp(s_hash_type,"sha256"))
@@ -520,7 +520,7 @@ static SHAversion lua_hash_type(const char *s_hash_type)
 	else if (!strcmp(s_hash_type,"sha224"))
 		sha_ver = SHA224;
 	else
-		luaL_error(params.L, "unsupported hash type %s", s_hash_type);
+		luaL_error(L, "unsupported hash type %s", s_hash_type);
 	return sha_ver;
 }
 
@@ -555,7 +555,7 @@ static int luacall_hash(lua_State *L)
 	LUA_STACK_GUARD_ENTER(L)
 
 	const char *s_hash_type =  luaL_checkstring(L,1);
-	SHAversion sha_ver = lua_hash_type(s_hash_type);
+	SHAversion sha_ver = lua_hash_type(L, s_hash_type);
 
 	size_t data_len;
 	const uint8_t *data = (uint8_t*)luaL_checklstring(L,2,&data_len);
@@ -679,7 +679,7 @@ static int luacall_hkdf(lua_State *L)
 	LUA_STACK_GUARD_ENTER(L)
 
 	const char *s_hash_type =  luaL_checkstring(L,1);
-	SHAversion sha_ver = lua_hash_type(s_hash_type);
+	SHAversion sha_ver = lua_hash_type(L, s_hash_type);
 	size_t salt_len=0;
 	const uint8_t *salt = lua_type(L,2) == LUA_TNIL ? NULL : (uint8_t*)luaL_checklstring(L,2,&salt_len);
 	size_t ikm_len=0;
@@ -740,12 +740,12 @@ static int luacall_uname(lua_State *L)
 		lua_pushnil(L);
 	else
 	{
-		lua_createtable(params.L, 0, 5);
-		lua_pushf_str("sysname", udata.sysname);
-		lua_pushf_str("nodename", udata.nodename);
-		lua_pushf_str("release", udata.release);
-		lua_pushf_str("version", udata.version);
-		lua_pushf_str("machine", udata.machine);
+		lua_createtable(L, 0, 5);
+		lua_pushf_str(L,"sysname", udata.sysname);
+		lua_pushf_str(L,"nodename", udata.nodename);
+		lua_pushf_str(L,"release", udata.release);
+		lua_pushf_str(L,"version", udata.version);
+		lua_pushf_str(L,"machine", udata.machine);
 	}
 	LUA_STACK_GUARD_RETURN(L,1)
 }
@@ -769,17 +769,17 @@ static int luacall_clock_gettime(lua_State *L)
 	LUA_STACK_GUARD_RETURN(L,2)
 }
 
-static t_lua_desync_context *lua_desync_ctx()
+static t_lua_desync_context *lua_desync_ctx(lua_State *L)
 {
-	if (lua_isnil(params.L,1))
-		luaL_error(params.L, "missing ctx");
-	if (!lua_islightuserdata(params.L,1))
-		luaL_error(params.L, "bad ctx - invalid data type");
+	if (lua_isnil(L,1))
+		luaL_error(L, "missing ctx");
+	if (!lua_islightuserdata(L,1))
+		luaL_error(L, "bad ctx - invalid data type");
 
-	t_lua_desync_context *ctx = lua_touserdata(params.L,1);
+	t_lua_desync_context *ctx = lua_touserdata(L,1);
 	// ensure it's really ctx. LUA could pass us any lightuserdata pointer
 	if (ctx->magic!=MAGIC_CTX)
-		luaL_error(params.L, "bad ctx - magic bytes invalid");
+		luaL_error(L, "bad ctx - magic bytes invalid");
 
 	return ctx;
 }
@@ -798,7 +798,7 @@ static int luacall_instance_cutoff(lua_State *L)
 		DLOG("instance cutoff not possible because missing ctx\n");
 	else
 	{
-		const t_lua_desync_context *ctx = lua_desync_ctx();
+		const t_lua_desync_context *ctx = lua_desync_ctx(L);
 
 		int argc=lua_gettop(L);
 		bool bIn,bOut;
@@ -818,18 +818,18 @@ static int luacall_instance_cutoff(lua_State *L)
 			if (!lua_istable(L,-1))
 			{
 				lua_pop(L,1);
-				lua_pushf_table(ctx->instance);
+				lua_pushf_table(L,ctx->instance);
 				lua_getfield(L,-1,ctx->instance);
 			}
 			lua_rawgeti(L,-1,ctx->dp->n);
 			if (!lua_istable(L,-1))
 			{
 				lua_pop(L,1);
-				lua_pushi_table(ctx->dp->n);
+				lua_pushi_table(L,ctx->dp->n);
 				lua_rawgeti(L,-1,ctx->dp->n);
 			}
-			if (bOut) lua_pushi_bool(0,true);
-			if (bIn) lua_pushi_bool(1,true);
+			if (bOut) lua_pushi_bool(L,0,true);
+			if (bIn) lua_pushi_bool(L,1,true);
 			lua_pop(L,3);
 		}
 		else
@@ -839,7 +839,7 @@ static int luacall_instance_cutoff(lua_State *L)
 	LUA_STACK_GUARD_RETURN(L,0)
 }
 
-bool lua_instance_cutoff_check(const t_lua_desync_context *ctx, bool bIn)
+bool lua_instance_cutoff_check(lua_State *L, const t_lua_desync_context *ctx, bool bIn)
 {
 	bool b=false;
 
@@ -848,22 +848,22 @@ bool lua_instance_cutoff_check(const t_lua_desync_context *ctx, bool bIn)
 
 	if (ctx->ctrack)
 	{
-		lua_rawgeti(params.L,LUA_REGISTRYINDEX,ctx->ctrack->lua_instance_cutoff);
-		lua_getfield(params.L,-1,ctx->instance);
-		if (!lua_istable(params.L,-1))
+		lua_rawgeti(L,LUA_REGISTRYINDEX,ctx->ctrack->lua_instance_cutoff);
+		lua_getfield(L,-1,ctx->instance);
+		if (!lua_istable(L,-1))
 		{
-			lua_pop(params.L,2);
+			lua_pop(L,2);
 			return false;
 		}
-		lua_rawgeti(params.L,-1,ctx->dp->n);
-		if (!lua_istable(params.L,-1))
+		lua_rawgeti(L,-1,ctx->dp->n);
+		if (!lua_istable(L,-1))
 		{
-			lua_pop(params.L,3);
+			lua_pop(L,3);
 			return false;
 		}
-		lua_rawgeti(params.L,-1,bIn);
-		b = lua_toboolean(params.L,-1);
-		lua_pop(params.L,4);
+		lua_rawgeti(L,-1,bIn);
+		b = lua_toboolean(L,-1);
+		lua_pop(L,4);
 	}
 	return b;
 }
@@ -874,7 +874,7 @@ static int luacall_lua_cutoff(lua_State *L)
 
 	LUA_STACK_GUARD_ENTER(L)
 
-	t_lua_desync_context *ctx = lua_desync_ctx();
+	t_lua_desync_context *ctx = lua_desync_ctx(L);
 
 	int argc=lua_gettop(L);
 	bool bIn,bOut;
@@ -906,7 +906,7 @@ static int luacall_execution_plan(lua_State *L)
 
 	LUA_STACK_GUARD_ENTER(L)
 
-	t_lua_desync_context *ctx = lua_desync_ctx();
+	t_lua_desync_context *ctx = lua_desync_ctx(L);
 
 	lua_newtable(L);
 
@@ -920,19 +920,19 @@ static int luacall_execution_plan(lua_State *L)
 		{
 			desync_instance(func->func, ctx->dp->n, n, instance, sizeof(instance));
 			range = ctx->incoming ? &func->range_in : &func->range_out;
-			lua_pushinteger(params.L, n - ctx->func_n);
-			lua_createtable(params.L, 0, 6);
-			lua_pushf_args(&func->args, -1, false);
-			lua_pushf_str("func", func->func);
-			lua_pushf_int("func_n", ctx->func_n);
-			lua_pushf_str("func_instance", instance);
-			lua_pushf_range("range", range);
+			lua_pushinteger(L, n - ctx->func_n);
+			lua_createtable(L, 0, 6);
+			lua_pushf_args(L,&func->args, -1, false);
+			lua_pushf_str(L,"func", func->func);
+			lua_pushf_int(L,"func_n", ctx->func_n);
+			lua_pushf_str(L,"func_instance", instance);
+			lua_pushf_range(L,"range", range);
 			if (l7_payload_str_list(func->payload_type, pls, sizeof(pls)))
-				lua_pushf_str("payload_filter", pls);
+				lua_pushf_str(L,"payload_filter", pls);
 			else
-				lua_pushf_nil("payload_filter");
+				lua_pushf_nil(L,"payload_filter");
 
-			lua_rawset(params.L,-3);
+			lua_rawset(L,-3);
 		}
 		n++;
 	}
@@ -943,7 +943,7 @@ static int luacall_execution_plan_cancel(lua_State *L)
 {
 	lua_check_argc(L,"execution_plan_cancel",1);
 
-	t_lua_desync_context *ctx = lua_desync_ctx();
+	t_lua_desync_context *ctx = lua_desync_ctx(L);
 
 	DLOG("execution plan cancel from '%s'\n",ctx->instance);
 
@@ -958,7 +958,7 @@ static int luacall_raw_packet(lua_State *L)
 
 	LUA_STACK_GUARD_ENTER(L)
 
-	const t_lua_desync_context *ctx = lua_desync_ctx();
+	const t_lua_desync_context *ctx = lua_desync_ctx(L);
 
 	lua_pushlstring(L, (const char*)ctx->dis->data_pkt, ctx->dis->len_pkt);
 
@@ -966,163 +966,163 @@ static int luacall_raw_packet(lua_State *L)
 }
 
 
-void lua_pushf_nil(const char *field)
+void lua_pushf_nil(lua_State *L, const char *field)
 {
-	lua_pushstring(params.L, field);
-	lua_pushnil(params.L);
-	lua_rawset(params.L,-3);
+	lua_pushstring(L, field);
+	lua_pushnil(L);
+	lua_rawset(L,-3);
 }
-void lua_pushi_nil(lua_Integer idx)
+void lua_pushi_nil(lua_State *L, lua_Integer idx)
 {
-	lua_pushinteger(params.L, idx);
-	lua_pushnil(params.L);
-	lua_rawset(params.L,-3);
+	lua_pushinteger(L, idx);
+	lua_pushnil(L);
+	lua_rawset(L,-3);
 }
-void lua_pushf_int(const char *field, lua_Integer v)
+void lua_pushf_int(lua_State *L, const char *field, lua_Integer v)
 {
-	lua_pushstring(params.L, field);
-	lua_pushlint(params.L, v);
-	lua_rawset(params.L,-3);
+	lua_pushstring(L, field);
+	lua_pushlint(L, v);
+	lua_rawset(L,-3);
 }
-void lua_pushi_int(lua_Integer idx, lua_Integer v)
+void lua_pushi_int(lua_State *L, lua_Integer idx, lua_Integer v)
 {
-	lua_pushinteger(params.L, idx);
-	lua_pushlint(params.L, v);
-	lua_rawset(params.L,-3);
+	lua_pushinteger(L, idx);
+	lua_pushlint(L, v);
+	lua_rawset(L,-3);
 }
-void lua_pushf_lint(const char *field, int64_t v)
+void lua_pushf_lint(lua_State *L, const char *field, int64_t v)
 {
-	lua_pushstring(params.L, field);
-	lua_pushlint(params.L, v);
-	lua_rawset(params.L,-3);
+	lua_pushstring(L, field);
+	lua_pushlint(L, v);
+	lua_rawset(L,-3);
 }
-void lua_pushi_lint(lua_Integer idx, int64_t v)
+void lua_pushi_lint(lua_State *L, lua_Integer idx, int64_t v)
 {
-	lua_pushinteger(params.L, idx);
-	lua_pushlint(params.L, v);
-	lua_rawset(params.L,-3);
+	lua_pushinteger(L, idx);
+	lua_pushlint(L, v);
+	lua_rawset(L,-3);
 }
-void lua_pushf_number(const char *field, lua_Number v)
+void lua_pushf_number(lua_State *L, const char *field, lua_Number v)
 {
-	lua_pushstring(params.L, field);
-	lua_pushnumber(params.L, v);
-	lua_rawset(params.L,-3);
+	lua_pushstring(L, field);
+	lua_pushnumber(L, v);
+	lua_rawset(L,-3);
 }
-void lua_pushi_number(lua_Integer idx, lua_Number v)
+void lua_pushi_number(lua_State *L, lua_Integer idx, lua_Number v)
 {
-	lua_pushinteger(params.L, idx);
-	lua_pushnumber(params.L, v);
-	lua_rawset(params.L,-3);
+	lua_pushinteger(L, idx);
+	lua_pushnumber(L, v);
+	lua_rawset(L,-3);
 }
-void lua_pushf_bool(const char *field, bool b)
+void lua_pushf_bool(lua_State *L, const char *field, bool b)
 {
-	lua_pushstring(params.L, field);
-	lua_pushboolean(params.L, b);
-	lua_rawset(params.L,-3);
+	lua_pushstring(L, field);
+	lua_pushboolean(L, b);
+	lua_rawset(L,-3);
 }
-void lua_pushi_bool(lua_Integer idx, bool b)
+void lua_pushi_bool(lua_State *L, lua_Integer idx, bool b)
 {
-	lua_pushinteger(params.L, idx);
-	lua_pushboolean(params.L, b);
-	lua_rawset(params.L,-3);
+	lua_pushinteger(L, idx);
+	lua_pushboolean(L, b);
+	lua_rawset(L,-3);
 }
-void lua_pushf_str(const char *field, const char *str)
+void lua_pushf_str(lua_State *L, const char *field, const char *str)
 {
-	lua_pushstring(params.L, field);
-	lua_pushstring(params.L, str); // pushes nil if str==NULL
-	lua_rawset(params.L,-3);
+	lua_pushstring(L, field);
+	lua_pushstring(L, str); // pushes nil if str==NULL
+	lua_rawset(L,-3);
 }
-void lua_pushi_str(lua_Integer idx, const char *str)
+void lua_pushi_str(lua_State *L, lua_Integer idx, const char *str)
 {
-	lua_pushinteger(params.L, idx);
-	lua_pushstring(params.L, str); // pushes nil if str==NULL
-	lua_rawset(params.L,-3);
+	lua_pushinteger(L, idx);
+	lua_pushstring(L, str); // pushes nil if str==NULL
+	lua_rawset(L,-3);
 }
-void lua_pushf_lstr(const char *field, const char *str, size_t size)
+void lua_pushf_lstr(lua_State *L, const char *field, const char *str, size_t size)
 {
-	lua_pushstring(params.L, field);
-	lua_pushlstring(params.L, str, size);
-	lua_rawset(params.L,-3);
+	lua_pushstring(L, field);
+	lua_pushlstring(L, str, size);
+	lua_rawset(L,-3);
 }
-void lua_pushi_lstr(lua_Integer idx, const char *str, size_t size)
+void lua_pushi_lstr(lua_State *L, lua_Integer idx, const char *str, size_t size)
 {
-	lua_pushinteger(params.L, idx);
-	lua_pushlstring(params.L, str, size);
-	lua_rawset(params.L,-3);
+	lua_pushinteger(L, idx);
+	lua_pushlstring(L, str, size);
+	lua_rawset(L,-3);
 }
-void lua_push_raw(const void *v, size_t l)
+void lua_push_raw(lua_State *L, const void *v, size_t l)
 {
 	if (v)
-		lua_pushlstring(params.L, (char*)v, l);
+		lua_pushlstring(L, (char*)v, l);
 	else
-		lua_pushnil(params.L);
+		lua_pushnil(L);
 }
-void lua_pushf_raw(const char *field, const void *v, size_t l)
+void lua_pushf_raw(lua_State *L, const char *field, const void *v, size_t l)
 {
-	lua_pushstring(params.L, field);
-	lua_push_raw(v,l);
-	lua_rawset(params.L,-3);
+	lua_pushstring(L, field);
+	lua_push_raw(L, v,l);
+	lua_rawset(L,-3);
 }
-void lua_pushi_raw(lua_Integer idx, const void *v, size_t l)
+void lua_pushi_raw(lua_State *L, lua_Integer idx, const void *v, size_t l)
 {
-	lua_pushinteger(params.L, idx);
-	lua_push_raw(v,l);
-	lua_rawset(params.L,-3);
+	lua_pushinteger(L, idx);
+	lua_push_raw(L,v,l);
+	lua_rawset(L,-3);
 }
-void lua_pushf_reg(const char *field, int ref)
+void lua_pushf_reg(lua_State *L, const char *field, int ref)
 {
-	lua_pushstring(params.L, field);
-	lua_rawgeti(params.L, LUA_REGISTRYINDEX, ref);
-	lua_rawset(params.L, -3);
+	lua_pushstring(L, field);
+	lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
+	lua_rawset(L, -3);
 }
-void lua_pushf_lud(const char *field, void *p)
+void lua_pushf_lud(lua_State *L, const char *field, void *p)
 {
-	lua_pushstring(params.L, field);
-	lua_pushlightuserdata(params.L, p);
-	lua_rawset(params.L,-3);
+	lua_pushstring(L, field);
+	lua_pushlightuserdata(L, p);
+	lua_rawset(L,-3);
 }
-void lua_pushf_table(const char *field)
+void lua_pushf_table(lua_State *L, const char *field)
 {
-	lua_pushstring(params.L, field);
-	lua_newtable(params.L);
-	lua_rawset(params.L,-3);
+	lua_pushstring(L, field);
+	lua_newtable(L);
+	lua_rawset(L,-3);
 }
-void lua_pushi_table(lua_Integer idx)
+void lua_pushi_table(lua_State *L, lua_Integer idx)
 {
-	lua_pushinteger(params.L, idx);
-	lua_newtable(params.L);
-	lua_rawset(params.L,-3);
+	lua_pushinteger(L, idx);
+	lua_newtable(L);
+	lua_rawset(L,-3);
 }
-void lua_pushf_global(const char *field, const char *global)
+void lua_pushf_global(lua_State *L, const char *field, const char *global)
 {
-	lua_pushstring(params.L, field);
-	lua_getglobal(params.L, global);
-	lua_rawset(params.L,-3);
+	lua_pushstring(L, field);
+	lua_getglobal(L, global);
+	lua_rawset(L,-3);
 }
 
-void lua_push_blob(int idx_desync, const char *blob)
+void lua_push_blob(lua_State *L, int idx_desync, const char *blob)
 {
-	lua_getfield(params.L, idx_desync, blob);
-	if (lua_type(params.L,-1)==LUA_TNIL)
+	lua_getfield(L, idx_desync, blob);
+	if (lua_type(L,-1)==LUA_TNIL)
 	{
-		lua_pop(params.L,1);
-		lua_getglobal(params.L, blob);
+		lua_pop(L,1);
+		lua_getglobal(L, blob);
 	}
 }
-void lua_pushf_blob(int idx_desync, const char *field, const char *blob)
+void lua_pushf_blob(lua_State *L, int idx_desync, const char *field, const char *blob)
 {
-	lua_pushstring(params.L, field);
-	lua_push_blob(idx_desync, blob);
-	lua_rawset(params.L,-3);
+	lua_pushstring(L, field);
+	lua_push_blob(L, idx_desync, blob);
+	lua_rawset(L,-3);
 }
 
 
-void lua_pushf_tcphdr_options(const struct tcphdr *tcp, size_t len)
+void lua_pushf_tcphdr_options(lua_State *L, const struct tcphdr *tcp, size_t len)
 {
-	LUA_STACK_GUARD_ENTER(params.L)
+	LUA_STACK_GUARD_ENTER(L)
 
-	lua_pushliteral(params.L,"options");
-	lua_newtable(params.L);
+	lua_pushliteral(L,"options");
+	lua_newtable(L);
 
 	uint8_t *t = (uint8_t*)(tcp+1);
 	uint8_t *end = (uint8_t*)tcp + (tcp->th_off<<2);
@@ -1134,116 +1134,116 @@ void lua_pushf_tcphdr_options(const struct tcphdr *tcp, size_t len)
 		opt = *t;
 		if (opt==TCP_KIND_NOOP || opt==TCP_KIND_END)
 		{
-			lua_pushinteger(params.L,idx);
-			lua_newtable(params.L);
-			lua_pushf_int("kind",opt);
+			lua_pushinteger(L,idx);
+			lua_newtable(L);
+			lua_pushf_int(L,"kind",opt);
 			t++;
 		}
 		else
 		{
 			if ((t+1)>=end || t[1]<2 || (t+t[1])>end) break;
-			lua_pushinteger(params.L,idx);
-			lua_newtable(params.L);
-			lua_pushf_int("kind",opt);
-			lua_pushf_raw("data",t+2,t[1]-2);
+			lua_pushinteger(L,idx);
+			lua_newtable(L);
+			lua_pushf_int(L,"kind",opt);
+			lua_pushf_raw(L,"data",t+2,t[1]-2);
 			t+=t[1];
 		}
-		lua_rawset(params.L,-3);
+		lua_rawset(L,-3);
 		if (opt==TCP_KIND_END) break;
 		idx++;
 	}
 
-	lua_rawset(params.L,-3);
+	lua_rawset(L,-3);
 
-	LUA_STACK_GUARD_LEAVE(params.L, 0)
+	LUA_STACK_GUARD_LEAVE(L, 0)
 }
 
-void lua_pushf_tcphdr(const struct tcphdr *tcp, size_t len)
+void lua_pushf_tcphdr(lua_State *L, const struct tcphdr *tcp, size_t len)
 {
-	LUA_STACK_GUARD_ENTER(params.L)
+	LUA_STACK_GUARD_ENTER(L)
 
-	lua_pushliteral(params.L, "tcp");
+	lua_pushliteral(L, "tcp");
 	if (tcp && len>=sizeof(struct tcphdr))
 	{
-		lua_createtable(params.L, 0, 11);
-		lua_pushf_int("th_sport",ntohs(tcp->th_sport));
-		lua_pushf_int("th_dport",ntohs(tcp->th_dport));
-		lua_pushf_lint("th_seq",ntohl(tcp->th_seq));
-		lua_pushf_lint("th_ack",ntohl(tcp->th_ack));
-		lua_pushf_int("th_x2",tcp->th_x2);
-		lua_pushf_int("th_off",tcp->th_off);
-		lua_pushf_int("th_flags",tcp->th_flags);
-		lua_pushf_int("th_win",ntohs(tcp->th_win));
-		lua_pushf_int("th_sum",ntohs(tcp->th_sum));
-		lua_pushf_int("th_urp",ntohs(tcp->th_urp));
-		lua_pushf_tcphdr_options(tcp,len);
+		lua_createtable(L, 0, 11);
+		lua_pushf_int(L,"th_sport",ntohs(tcp->th_sport));
+		lua_pushf_int(L,"th_dport",ntohs(tcp->th_dport));
+		lua_pushf_lint(L,"th_seq",ntohl(tcp->th_seq));
+		lua_pushf_lint(L,"th_ack",ntohl(tcp->th_ack));
+		lua_pushf_int(L,"th_x2",tcp->th_x2);
+		lua_pushf_int(L,"th_off",tcp->th_off);
+		lua_pushf_int(L,"th_flags",tcp->th_flags);
+		lua_pushf_int(L,"th_win",ntohs(tcp->th_win));
+		lua_pushf_int(L,"th_sum",ntohs(tcp->th_sum));
+		lua_pushf_int(L,"th_urp",ntohs(tcp->th_urp));
+		lua_pushf_tcphdr_options(L,tcp,len);
 	}
 	else
-		lua_pushnil(params.L);
-	lua_rawset(params.L,-3);
+		lua_pushnil(L);
+	lua_rawset(L,-3);
 
-	LUA_STACK_GUARD_LEAVE(params.L, 0)
+	LUA_STACK_GUARD_LEAVE(L, 0)
 }
-void lua_pushf_udphdr(const struct udphdr *udp, size_t len)
+void lua_pushf_udphdr(lua_State *L, const struct udphdr *udp, size_t len)
 {
-	LUA_STACK_GUARD_ENTER(params.L)
+	LUA_STACK_GUARD_ENTER(L)
 
-	lua_pushliteral(params.L, "udp");
+	lua_pushliteral(L, "udp");
 	if (udp && len>=sizeof(struct udphdr))
 	{
-		lua_createtable(params.L, 0, 4);
-		lua_pushf_int("uh_sport",ntohs(udp->uh_sport));
-		lua_pushf_int("uh_dport",ntohs(udp->uh_dport));
-		lua_pushf_int("uh_ulen",ntohs(udp->uh_ulen));
-		lua_pushf_int("uh_sum",ntohs(udp->uh_sum));
+		lua_createtable(L, 0, 4);
+		lua_pushf_int(L,"uh_sport",ntohs(udp->uh_sport));
+		lua_pushf_int(L,"uh_dport",ntohs(udp->uh_dport));
+		lua_pushf_int(L,"uh_ulen",ntohs(udp->uh_ulen));
+		lua_pushf_int(L,"uh_sum",ntohs(udp->uh_sum));
 	}
 	else
-		lua_pushnil(params.L);
-	lua_rawset(params.L,-3);
+		lua_pushnil(L);
+	lua_rawset(L,-3);
 
-	LUA_STACK_GUARD_LEAVE(params.L, 0)
+	LUA_STACK_GUARD_LEAVE(L, 0)
 }
-void lua_pushf_iphdr(const struct ip *ip, size_t len)
+void lua_pushf_iphdr(lua_State *L, const struct ip *ip, size_t len)
 {
-	LUA_STACK_GUARD_ENTER(params.L)
+	LUA_STACK_GUARD_ENTER(L)
 
-	lua_pushliteral(params.L, "ip");
+	lua_pushliteral(L, "ip");
 	if (ip && len>=sizeof(struct ip))
 	{
 		uint16_t hl = ip->ip_hl<<2;
 		bool b_has_opt = hl>sizeof(struct tcphdr) && hl<=len;
-		lua_createtable(params.L, 0, 11+b_has_opt);
-		lua_pushf_int("ip_v",ip->ip_v);
-		lua_pushf_int("ip_hl",ip->ip_hl);
-		lua_pushf_int("ip_tos",ip->ip_tos);
-		lua_pushf_int("ip_len",ntohs(ip->ip_len));
-		lua_pushf_int("ip_id",ntohs(ip->ip_id));
-		lua_pushf_int("ip_off",ntohs(ip->ip_off));
-		lua_pushf_int("ip_ttl",ip->ip_ttl);
-		lua_pushf_int("ip_p",ip->ip_p);
-		lua_pushf_int("ip_sum",ip->ip_sum);
-		lua_pushf_raw("ip_src",&ip->ip_src,sizeof(struct in_addr));
-		lua_pushf_raw("ip_dst",&ip->ip_dst,sizeof(struct in_addr));
+		lua_createtable(L, 0, 11+b_has_opt);
+		lua_pushf_int(L,"ip_v",ip->ip_v);
+		lua_pushf_int(L,"ip_hl",ip->ip_hl);
+		lua_pushf_int(L,"ip_tos",ip->ip_tos);
+		lua_pushf_int(L,"ip_len",ntohs(ip->ip_len));
+		lua_pushf_int(L,"ip_id",ntohs(ip->ip_id));
+		lua_pushf_int(L,"ip_off",ntohs(ip->ip_off));
+		lua_pushf_int(L,"ip_ttl",ip->ip_ttl);
+		lua_pushf_int(L,"ip_p",ip->ip_p);
+		lua_pushf_int(L,"ip_sum",ip->ip_sum);
+		lua_pushf_raw(L,"ip_src",&ip->ip_src,sizeof(struct in_addr));
+		lua_pushf_raw(L,"ip_dst",&ip->ip_dst,sizeof(struct in_addr));
 		if (b_has_opt)
-			lua_pushf_raw("options",(uint8_t*)(ip+1),hl-sizeof(struct tcphdr));
+			lua_pushf_raw(L,"options",(uint8_t*)(ip+1),hl-sizeof(struct tcphdr));
 	}
 	else
-		lua_pushnil(params.L);
-	lua_rawset(params.L,-3);
+		lua_pushnil(L);
+	lua_rawset(L,-3);
 
-	LUA_STACK_GUARD_LEAVE(params.L, 0)
+	LUA_STACK_GUARD_LEAVE(L, 0)
 }
-void lua_pushf_ip6exthdr(const struct ip6_hdr *ip6, size_t len)
+void lua_pushf_ip6exthdr(lua_State *L, const struct ip6_hdr *ip6, size_t len)
 {
-	LUA_STACK_GUARD_ENTER(params.L);
+	LUA_STACK_GUARD_ENTER(L);
 
 	// assume ipv6 packet structure was already checked for validity
 	size_t hdrlen;
 	uint8_t HeaderType, *data;
 	lua_Integer idx = 1;
 
-	lua_pushliteral(params.L, "exthdr");
-	lua_newtable(params.L);
+	lua_pushliteral(L, "exthdr");
+	lua_newtable(L);
 	if (len>=sizeof(struct ip6_hdr))
 	{
 		HeaderType = ip6->ip6_ctlun.ip6_un1.ip6_un1_nxt;
@@ -1277,13 +1277,13 @@ void lua_pushf_ip6exthdr(const struct ip6_hdr *ip6, size_t len)
 			}
 			if (len < hdrlen) goto end; // error
 
-			lua_pushinteger(params.L, idx++);
-			lua_createtable(params.L, 0, 3);
-			lua_pushf_int("type", HeaderType);
+			lua_pushinteger(L, idx++);
+			lua_createtable(L, 0, 3);
+			lua_pushf_int(L,"type", HeaderType);
 			HeaderType = *data;
-			lua_pushf_int("next", HeaderType);
-			lua_pushf_raw("data",data+2,hdrlen-2);
-			lua_rawset(params.L,-3);
+			lua_pushf_int(L,"next", HeaderType);
+			lua_pushf_raw(L,"data",data+2,hdrlen-2);
+			lua_rawset(L,-3);
 
 			// advance to the next header location
 			len -= hdrlen;
@@ -1292,152 +1292,152 @@ void lua_pushf_ip6exthdr(const struct ip6_hdr *ip6, size_t len)
 	}
 
 end:
-	lua_rawset(params.L,-3);
+	lua_rawset(L,-3);
 
-	LUA_STACK_GUARD_LEAVE(params.L, 0)
+	LUA_STACK_GUARD_LEAVE(L, 0)
 }
-void lua_pushf_ip6hdr(const struct ip6_hdr *ip6, size_t len)
+void lua_pushf_ip6hdr(lua_State *L, const struct ip6_hdr *ip6, size_t len)
 {
-	LUA_STACK_GUARD_ENTER(params.L)
+	LUA_STACK_GUARD_ENTER(L)
 
-	lua_pushliteral(params.L, "ip6");
+	lua_pushliteral(L, "ip6");
 	if (ip6)
 	{
-		lua_createtable(params.L, 0, 7);
-		lua_pushf_lint("ip6_flow",ntohl(ip6->ip6_ctlun.ip6_un1.ip6_un1_flow));
-		lua_pushf_lint("ip6_plen",ntohs(ip6->ip6_ctlun.ip6_un1.ip6_un1_plen));
-		lua_pushf_int("ip6_nxt",ip6->ip6_ctlun.ip6_un1.ip6_un1_nxt);
-		lua_pushf_int("ip6_hlim",ip6->ip6_ctlun.ip6_un1.ip6_un1_hlim);
-		lua_pushf_raw("ip6_src",&ip6->ip6_src,sizeof(struct in6_addr));
-		lua_pushf_raw("ip6_dst",&ip6->ip6_dst,sizeof(struct in6_addr));
-		lua_pushf_ip6exthdr(ip6,len);
+		lua_createtable(L, 0, 7);
+		lua_pushf_lint(L,"ip6_flow",ntohl(ip6->ip6_ctlun.ip6_un1.ip6_un1_flow));
+		lua_pushf_lint(L,"ip6_plen",ntohs(ip6->ip6_ctlun.ip6_un1.ip6_un1_plen));
+		lua_pushf_int(L,"ip6_nxt",ip6->ip6_ctlun.ip6_un1.ip6_un1_nxt);
+		lua_pushf_int(L,"ip6_hlim",ip6->ip6_ctlun.ip6_un1.ip6_un1_hlim);
+		lua_pushf_raw(L,"ip6_src",&ip6->ip6_src,sizeof(struct in6_addr));
+		lua_pushf_raw(L,"ip6_dst",&ip6->ip6_dst,sizeof(struct in6_addr));
+		lua_pushf_ip6exthdr(L,ip6,len);
 	}
 	else
-		lua_pushnil(params.L);
-	lua_rawset(params.L,-3);
+		lua_pushnil(L);
+	lua_rawset(L,-3);
 
-	LUA_STACK_GUARD_LEAVE(params.L, 0)
+	LUA_STACK_GUARD_LEAVE(L, 0)
 }
-void lua_push_dissect(const struct dissect *dis)
+void lua_push_dissect(lua_State *L, const struct dissect *dis)
 {
-	LUA_STACK_GUARD_ENTER(params.L)
+	LUA_STACK_GUARD_ENTER(L)
 
 	if (dis)
 	{
-		lua_createtable(params.L, 0, 9);
-		lua_pushf_iphdr(dis->ip, dis->len_l3);
-		lua_pushf_ip6hdr(dis->ip6, dis->len_l3);
-		lua_pushf_tcphdr(dis->tcp, dis->len_l4);
-		lua_pushf_udphdr(dis->udp, dis->len_l4);
-		lua_pushf_int("l4proto",dis->proto);
-		lua_pushf_int("transport_len",dis->transport_len);
-		lua_pushf_int("l3_len",dis->len_l3);
-		lua_pushf_int("l4_len",dis->len_l4);
-		lua_pushf_raw("payload",dis->data_payload,dis->len_payload);
+		lua_createtable(L, 0, 9);
+		lua_pushf_iphdr(L,dis->ip, dis->len_l3);
+		lua_pushf_ip6hdr(L,dis->ip6, dis->len_l3);
+		lua_pushf_tcphdr(L,dis->tcp, dis->len_l4);
+		lua_pushf_udphdr(L,dis->udp, dis->len_l4);
+		lua_pushf_int(L,"l4proto",dis->proto);
+		lua_pushf_int(L,"transport_len",dis->transport_len);
+		lua_pushf_int(L,"l3_len",dis->len_l3);
+		lua_pushf_int(L,"l4_len",dis->len_l4);
+		lua_pushf_raw(L,"payload",dis->data_payload,dis->len_payload);
 	}
 	else
-		lua_pushnil(params.L);
+		lua_pushnil(L);
 
-	LUA_STACK_GUARD_LEAVE(params.L, 1)
+	LUA_STACK_GUARD_LEAVE(L, 1)
 }
-void lua_pushf_dissect(const struct dissect *dis)
+void lua_pushf_dissect(lua_State *L, const struct dissect *dis)
 {
-	lua_pushliteral(params.L, "dis");
-	lua_push_dissect(dis);
-	lua_rawset(params.L,-3);
+	lua_pushliteral(L, "dis");
+	lua_push_dissect(L, dis);
+	lua_rawset(L,-3);
 }
 
-void lua_pushf_ctrack_pos(const t_ctrack *ctrack, const t_ctrack_position *pos)
+void lua_pushf_ctrack_pos(lua_State *L, const t_ctrack *ctrack, const t_ctrack_position *pos)
 {
-	LUA_STACK_GUARD_ENTER(params.L)
+	LUA_STACK_GUARD_ENTER(L)
 
-	lua_pushf_lint("pcounter", pos->pcounter);
-	lua_pushf_lint("pdcounter", pos->pdcounter);
-	lua_pushf_lint("pbcounter", pos->pbcounter);
-	if (pos->ip6flow) lua_pushf_int("ip6_flow", pos->ip6flow);
+	lua_pushf_lint(L,"pcounter", pos->pcounter);
+	lua_pushf_lint(L,"pdcounter", pos->pdcounter);
+	lua_pushf_lint(L,"pbcounter", pos->pbcounter);
+	if (pos->ip6flow) lua_pushf_int(L,"ip6_flow", pos->ip6flow);
 	if (ctrack->ipproto == IPPROTO_TCP)
 	{
-		lua_pushliteral(params.L, "tcp");
-		lua_createtable(params.L, 0, 11);
-		lua_pushf_lint("seq0", pos->seq0);
-		lua_pushf_lint("seq", pos->seq_last);
-		lua_pushf_lint("rseq", pos->seq_last - pos->seq0);
-		lua_pushf_bool("rseq_over_2G", pos->rseq_over_2G);
-		lua_pushf_int("pos", pos->pos - pos->seq0);
-		lua_pushf_int("uppos", pos->uppos - pos->seq0);
-		lua_pushf_int("uppos_prev", pos->uppos_prev - pos->seq0);
-		lua_pushf_int("winsize", pos->winsize);
-		lua_pushf_int("winsize_calc", pos->winsize_calc);
-		lua_pushf_int("scale", pos->scale);
-		lua_pushf_int("mss", pos->mss);
-		lua_rawset(params.L,-3);
+		lua_pushliteral(L, "tcp");
+		lua_createtable(L, 0, 11);
+		lua_pushf_lint(L,"seq0", pos->seq0);
+		lua_pushf_lint(L,"seq", pos->seq_last);
+		lua_pushf_lint(L,"rseq", pos->seq_last - pos->seq0);
+		lua_pushf_bool(L,"rseq_over_2G", pos->rseq_over_2G);
+		lua_pushf_int(L,"pos", pos->pos - pos->seq0);
+		lua_pushf_int(L,"uppos", pos->uppos - pos->seq0);
+		lua_pushf_int(L,"uppos_prev", pos->uppos_prev - pos->seq0);
+		lua_pushf_int(L,"winsize", pos->winsize);
+		lua_pushf_int(L,"winsize_calc", pos->winsize_calc);
+		lua_pushf_int(L,"scale", pos->scale);
+		lua_pushf_int(L,"mss", pos->mss);
+		lua_rawset(L,-3);
 	}
 
-	LUA_STACK_GUARD_LEAVE(params.L, 0)
+	LUA_STACK_GUARD_LEAVE(L, 0)
 }
 
-void lua_pushf_ctrack(const t_ctrack *ctrack, const t_ctrack_positions *tpos, bool bIncoming)
+void lua_pushf_ctrack(lua_State *L, const t_ctrack *ctrack, const t_ctrack_positions *tpos, bool bIncoming)
 {
-	LUA_STACK_GUARD_ENTER(params.L)
+	LUA_STACK_GUARD_ENTER(L)
 
 	if (!tpos) tpos = &ctrack->pos;
 
-	lua_pushliteral(params.L, "track");
+	lua_pushliteral(L, "track");
 	if (ctrack)
 	{
-		lua_createtable(params.L, 0, 9);
+		lua_createtable(L, 0, 9);
 
 		if (ctrack->incoming_ttl)
-			lua_pushf_int("incoming_ttl", ctrack->incoming_ttl);
+			lua_pushf_int(L, "incoming_ttl", ctrack->incoming_ttl);
 		else
-			lua_pushf_nil("incoming_ttl");
-		lua_pushf_str("l7proto", l7proto_str(ctrack->l7proto));
-		lua_pushf_str("hostname", ctrack->hostname);
-		lua_pushf_bool("hostname_is_ip", ctrack->hostname_is_ip);
-		lua_pushf_reg("lua_state", ctrack->lua_state);
-		lua_pushf_bool("lua_in_cutoff", ctrack->b_lua_in_cutoff);
-		lua_pushf_bool("lua_out_cutoff", ctrack->b_lua_out_cutoff);
-		lua_pushf_lint("t_start", (lua_Number)ctrack->t_start.tv_sec + ctrack->t_start.tv_nsec/1000000000.);
+			lua_pushf_nil(L, "incoming_ttl");
+		lua_pushf_str(L, "l7proto", l7proto_str(ctrack->l7proto));
+		lua_pushf_str(L, "hostname", ctrack->hostname);
+		lua_pushf_bool(L, "hostname_is_ip", ctrack->hostname_is_ip);
+		lua_pushf_reg(L, "lua_state", ctrack->lua_state);
+		lua_pushf_bool(L, "lua_in_cutoff", ctrack->b_lua_in_cutoff);
+		lua_pushf_bool(L, "lua_out_cutoff", ctrack->b_lua_out_cutoff);
+		lua_pushf_lint(L, "t_start", (lua_Number)ctrack->t_start.tv_sec + ctrack->t_start.tv_nsec/1000000000.);
 
-		lua_pushliteral(params.L, "pos");
-		lua_createtable(params.L, 0, 5);
+		lua_pushliteral(L, "pos");
+		lua_createtable(L, 0, 5);
 
 		// orig, reply related to connection logical direction
 		// for tcp orig is client (who connects), reply is server (who listens). 
 		// for orig is the first seen party, reply is another party
-		lua_pushf_number("dt",
+		lua_pushf_number(L, "dt",
 			(lua_Number)tpos->t_last.tv_sec - (lua_Number)ctrack->t_start.tv_sec +
 			(tpos->t_last.tv_nsec - ctrack->t_start.tv_nsec)/1000000000.);
 
-		lua_pushliteral(params.L, "client");
-		lua_newtable(params.L);
-		lua_pushf_ctrack_pos(ctrack, &tpos->client);
-		lua_rawset(params.L,-3);
+		lua_pushliteral(L, "client");
+		lua_newtable(L);
+		lua_pushf_ctrack_pos(L, ctrack, &tpos->client);
+		lua_rawset(L,-3);
 
-		lua_pushliteral(params.L, "server");
-		lua_newtable(params.L);
-		lua_pushf_ctrack_pos(ctrack, &tpos->server);
-		lua_rawset(params.L,-3);
+		lua_pushliteral(L, "server");
+		lua_newtable(L);
+		lua_pushf_ctrack_pos(L, ctrack, &tpos->server);
+		lua_rawset(L,-3);
 
 		// direct and reverse are adjusted for server mode. in server mode orig and reply are exchanged.
-		lua_pushliteral(params.L, "direct");
-		lua_getfield(params.L, -2, (params.server ^ bIncoming) ? "server" : "client");
-		lua_rawset(params.L,-3);
+		lua_pushliteral(L, "direct");
+		lua_getfield(L, -2, (params.server ^ bIncoming) ? "server" : "client");
+		lua_rawset(L,-3);
 
-		lua_pushliteral(params.L, "reverse");
-		lua_getfield(params.L, -2, (params.server ^ bIncoming) ? "client" : "server");
-		lua_rawset(params.L,-3);
+		lua_pushliteral(L, "reverse");
+		lua_getfield(L, -2, (params.server ^ bIncoming) ? "client" : "server");
+		lua_rawset(L,-3);
 
-		lua_rawset(params.L,-3);
+		lua_rawset(L,-3);
 	}
 	else
-		lua_pushnil(params.L);
-	lua_rawset(params.L,-3);
+		lua_pushnil(L);
+	lua_rawset(L,-3);
 
-	LUA_STACK_GUARD_LEAVE(params.L, 0)
+	LUA_STACK_GUARD_LEAVE(L, 0)
 }
 
-void lua_pushf_args(const struct str2_list_head *args, int idx_desync, bool subst_prefix)
+void lua_pushf_args(lua_State *L, const struct str2_list_head *args, int idx_desync, bool subst_prefix)
 {
 	// var=val - pass val string
 	// var=%val - subst 'val' blob
@@ -1445,15 +1445,15 @@ void lua_pushf_args(const struct str2_list_head *args, int idx_desync, bool subs
 	// var=\#val - no subst, skip '\'
 	// var=\%val - no subst, skip '\'
 
-	LUA_STACK_GUARD_ENTER(params.L)
+	LUA_STACK_GUARD_ENTER(L)
 
 	struct str2_list *arg;
 	const char *var, *val;
 
-	idx_desync = lua_absindex(params.L, idx_desync);
+	idx_desync = lua_absindex(L, idx_desync);
 
-	lua_pushliteral(params.L,"arg");
-	lua_newtable(params.L);
+	lua_pushliteral(L,"arg");
+	lua_newtable(L);
 	LIST_FOREACH(arg, args, next)
 	{
 		var = arg->str1;
@@ -1462,52 +1462,52 @@ void lua_pushf_args(const struct str2_list_head *args, int idx_desync, bool subs
 		{
 			if (val[0]=='\\' && (val[1]=='%' || val[1]=='#'))
 				// escape char
-				lua_pushf_str(var, val+1);
+				lua_pushf_str(L, var, val+1);
 			else if (val[0]=='%')
-				lua_pushf_blob(idx_desync, var, val+1);
+				lua_pushf_blob(L, idx_desync, var, val+1);
 			else if (val[0]=='#')
 			{
-				lua_push_blob(idx_desync, val+1);
-				lua_Integer len = lua_rawlen(params.L, -1);
-				lua_pop(params.L,1);
-				lua_pushf_int(var, len);
+				lua_push_blob(L, idx_desync, val+1);
+				lua_Integer len = lua_rawlen(L, -1);
+				lua_pop(L,1);
+				lua_pushf_int(L, var, len);
 			}
 			else
-				lua_pushf_str(var, val);
+				lua_pushf_str(L, var, val);
 		}
 		else
-			lua_pushf_str(var, val);
+			lua_pushf_str(L, var, val);
 	}
-	lua_rawset(params.L,-3);
+	lua_rawset(L,-3);
 
-	LUA_STACK_GUARD_LEAVE(params.L, 0)
+	LUA_STACK_GUARD_LEAVE(L, 0)
 }
-void lua_pushf_pos(const char *name, const struct packet_pos *pos)
+void lua_pushf_pos(lua_State *L, const char *name, const struct packet_pos *pos)
 {
-	LUA_STACK_GUARD_ENTER(params.L)
+	LUA_STACK_GUARD_ENTER(L)
 
 	char smode[2]="?";
-	lua_pushf_table(name);
-	lua_getfield(params.L,-1,name);
+	lua_pushf_table(L,name);
+	lua_getfield(L, -1, name);
 	*smode=pos->mode;
-	lua_pushf_str("mode",smode);
-	lua_pushf_lint("pos",pos->pos);
-	lua_pop(params.L,1);
+	lua_pushf_str(L, "mode",smode);
+	lua_pushf_lint(L, "pos",pos->pos);
+	lua_pop(L,1);
 
-	LUA_STACK_GUARD_LEAVE(params.L, 0)
+	LUA_STACK_GUARD_LEAVE(L, 0)
 }
-void lua_pushf_range(const char *name, const struct packet_range *range)
+void lua_pushf_range(lua_State *L, const char *name, const struct packet_range *range)
 {
-	LUA_STACK_GUARD_ENTER(params.L)
+	LUA_STACK_GUARD_ENTER(L)
 
-	lua_pushf_table(name);
-	lua_getfield(params.L,-1,"range");
-	lua_pushf_bool("upper_cutoff",range->upper_cutoff);
-	lua_pushf_pos("from", &range->from);
-	lua_pushf_pos("to", &range->to);
-	lua_pop(params.L,1);
+	lua_pushf_table(L, name);
+	lua_getfield(L, -1, "range");
+	lua_pushf_bool(L, "upper_cutoff",range->upper_cutoff);
+	lua_pushf_pos(L, "from", &range->from);
+	lua_pushf_pos(L, "to", &range->to);
+	lua_pop(L,1);
 
-	LUA_STACK_GUARD_LEAVE(params.L, 0)
+	LUA_STACK_GUARD_LEAVE(L, 0)
 }
 
 
@@ -1524,19 +1524,19 @@ static void lua_reconstruct_extract_options(lua_State *L, int idx, bool *badsum,
 		luaL_checktype(L, idx, LUA_TTABLE);
 		if (badsum)
 		{
-			lua_getfield(L,idx,"badsum");
+			lua_getfield(L, idx,"badsum");
 			*badsum = lua_type(L,-1)!=LUA_TNIL && (lua_type(L,-1)!=LUA_TBOOLEAN || lua_toboolean(L,-1));
 			lua_pop(L,1);
 		}
 		if (ip6_preserve_next)
 		{
-			lua_getfield(L,idx,"ip6_preserve_next");
+			lua_getfield(L, idx,"ip6_preserve_next");
 			*ip6_preserve_next = lua_type(L,-1)!=LUA_TNIL && (lua_type(L,-1)!=LUA_TBOOLEAN || lua_toboolean(L,-1));
 			lua_pop(L,1);
 		}
 		if (ip6_last_proto)
 		{
-			lua_getfield(L,idx,"ip6_last_proto");
+			lua_getfield(L, idx,"ip6_last_proto");
 			*ip6_last_proto = lua_type(L,-1)==LUA_TNIL ? IPPROTO_NONE : (uint8_t)lua_tointeger(L,-1);
 			lua_pop(L,1);
 		}
@@ -1544,17 +1544,17 @@ static void lua_reconstruct_extract_options(lua_State *L, int idx, bool *badsum,
 }
 
 
-static bool lua_reconstruct_ip6exthdr(int idx, struct ip6_hdr *ip6, size_t *len, uint8_t proto, bool preserve_next)
+static bool lua_reconstruct_ip6exthdr(lua_State *L, int idx, struct ip6_hdr *ip6, size_t *len, uint8_t proto, bool preserve_next)
 {
-	LUA_STACK_GUARD_ENTER(params.L)
+	LUA_STACK_GUARD_ENTER(L)
 
 	// proto = last header type
 	if (*len<sizeof(struct tcphdr)) return false;
 
 	uint8_t *last_proto = &ip6->ip6_ctlun.ip6_un1.ip6_un1_nxt;
 	uint8_t filled = sizeof(struct ip6_hdr);
-	lua_getfield(params.L,idx,"exthdr");
-	if (lua_type(params.L,-1)==LUA_TTABLE)
+	lua_getfield(L,idx,"exthdr");
+	if (lua_type(L,-1)==LUA_TTABLE)
 	{
 		lua_Integer idx=0;
 		uint8_t next, type, *p, *data = (uint8_t*)(ip6+1);
@@ -1564,28 +1564,28 @@ static bool lua_reconstruct_ip6exthdr(int idx, struct ip6_hdr *ip6, size_t *len,
 
 		for(;;)
 		{
-			lua_rawgeti(params.L,-1,++idx);
-			if (lua_type(params.L,-1)==LUA_TNIL)
+			lua_rawgeti(L,-1,++idx);
+			if (lua_type(L,-1)==LUA_TNIL)
 			{
-				lua_pop(params.L, 1);
+				lua_pop(L, 1);
 				break;
 			}
 			else
 			{
-				if (lua_type(params.L,-1)!=LUA_TTABLE) goto err2;
+				if (lua_type(L,-1)!=LUA_TTABLE) goto err2;
 
-				lua_getfield(params.L,-1, "type");
-				if (lua_type(params.L,-1)!=LUA_TNUMBER) goto err3;
-				type = (uint8_t)lua_tointeger(params.L,-1);
-				lua_pop(params.L, 1);
+				lua_getfield(L,-1, "type");
+				if (lua_type(L,-1)!=LUA_TNUMBER) goto err3;
+				type = (uint8_t)lua_tointeger(L,-1);
+				lua_pop(L, 1);
 
-				lua_getfield(params.L,-1, "next");
-				next = lua_type(params.L,-1)==LUA_TNUMBER ? (uint8_t)lua_tointeger(params.L,-1) : IPPROTO_NONE;
-				lua_pop(params.L, 1);
+				lua_getfield(L,-1, "next");
+				next = lua_type(L,-1)==LUA_TNUMBER ? (uint8_t)lua_tointeger(L,-1) : IPPROTO_NONE;
+				lua_pop(L, 1);
 
-				lua_getfield(params.L,-1, "data");
-				if (lua_type(params.L,-1)!=LUA_TSTRING) goto err3;
-				p=(uint8_t*)lua_tolstring(params.L,-1,&l);
+				lua_getfield(L,-1, "data");
+				if (lua_type(L,-1)!=LUA_TSTRING) goto err3;
+				p=(uint8_t*)lua_tolstring(L,-1,&l);
 				if (!l || (l+2)>left || ((type==IPPROTO_AH) ? (l<6 || ((l+2) & 3)) : ((l+2) & 7))) goto err3;
 				memcpy(data+2,p,l);
 				l+=2;
@@ -1594,7 +1594,7 @@ static bool lua_reconstruct_ip6exthdr(int idx, struct ip6_hdr *ip6, size_t *len,
 				if (!preserve_next) *last_proto = type;
 				last_proto = data; // first byte of header holds type
 				left -= l; data += l; filled += l;
-				lua_pop(params.L, 2);
+				lua_pop(L, 2);
 			}
 		}
 	}
@@ -1602,63 +1602,63 @@ static bool lua_reconstruct_ip6exthdr(int idx, struct ip6_hdr *ip6, size_t *len,
 	if (!preserve_next) *last_proto = proto;
 
 	*len = filled;
-	lua_pop(params.L, 1);
-	LUA_STACK_GUARD_LEAVE(params.L, 0)
+	lua_pop(L, 1);
+	LUA_STACK_GUARD_LEAVE(L, 0)
 	return true;
 err2:
-	lua_pop(params.L, 2);
+	lua_pop(L, 2);
 	goto err;
 err3:
-	lua_pop(params.L, 3);
+	lua_pop(L, 3);
 err:
-	LUA_STACK_GUARD_LEAVE(params.L, 0)
+	LUA_STACK_GUARD_LEAVE(L, 0)
 	return false;
 }
-bool lua_reconstruct_ip6hdr(int idx, struct ip6_hdr *ip6, size_t *len, uint8_t last_proto, bool preserve_next)
+bool lua_reconstruct_ip6hdr(lua_State *L, int idx, struct ip6_hdr *ip6, size_t *len, uint8_t last_proto, bool preserve_next)
 {
-	LUA_STACK_GUARD_ENTER(params.L)
+	LUA_STACK_GUARD_ENTER(L)
 
 	const char *p;
 	size_t l;
-	if (*len<sizeof(struct ip6_hdr) || lua_type(params.L,idx)!=LUA_TTABLE) return false;
+	if (*len<sizeof(struct ip6_hdr) || lua_type(L,idx)!=LUA_TTABLE) return false;
 
-	idx = lua_absindex(params.L, idx);
+	idx = lua_absindex(L, idx);
 
-	lua_getfield(params.L,idx,"ip6_flow");
-	ip6->ip6_ctlun.ip6_un1.ip6_un1_flow = htonl(lua_type(params.L,-1)==LUA_TNUMBER ? (uint32_t)lua_tolint(params.L,-1) : 0x60000000);
-	lua_pop(params.L, 1);
+	lua_getfield(L,idx,"ip6_flow");
+	ip6->ip6_ctlun.ip6_un1.ip6_un1_flow = htonl(lua_type(L,-1)==LUA_TNUMBER ? (uint32_t)lua_tolint(L,-1) : 0x60000000);
+	lua_pop(L, 1);
 
-	lua_getfield(params.L,idx,"ip6_plen");
-	ip6->ip6_ctlun.ip6_un1.ip6_un1_plen = htons((uint16_t)lua_tointeger(params.L,-1));
+	lua_getfield(L,idx,"ip6_plen");
+	ip6->ip6_ctlun.ip6_un1.ip6_un1_plen = htons((uint16_t)lua_tointeger(L,-1));
 
-	lua_pop(params.L, 1);
+	lua_pop(L, 1);
 
-	lua_getfield(params.L,idx,"ip6_nxt");
-	ip6->ip6_ctlun.ip6_un1.ip6_un1_nxt = (uint8_t)lua_tointeger(params.L,-1);
-	lua_pop(params.L, 1);
+	lua_getfield(L,idx,"ip6_nxt");
+	ip6->ip6_ctlun.ip6_un1.ip6_un1_nxt = (uint8_t)lua_tointeger(L,-1);
+	lua_pop(L, 1);
 
-	lua_getfield(params.L,idx,"ip6_hlim");
-	ip6->ip6_ctlun.ip6_un1.ip6_un1_hlim = (uint8_t)lua_tointeger(params.L,-1);
-	lua_pop(params.L, 1);
+	lua_getfield(L,idx,"ip6_hlim");
+	ip6->ip6_ctlun.ip6_un1.ip6_un1_hlim = (uint8_t)lua_tointeger(L,-1);
+	lua_pop(L, 1);
 
-	lua_getfield(params.L,idx,"ip6_src");
-	if (lua_type(params.L,-1)!=LUA_TSTRING) goto err;
-	p = lua_tolstring(params.L,-1,&l);
+	lua_getfield(L,idx,"ip6_src");
+	if (lua_type(L,-1)!=LUA_TSTRING) goto err;
+	p = lua_tolstring(L,-1,&l);
 	if (l!=sizeof(struct in6_addr)) goto err;
 	ip6->ip6_src = *(struct in6_addr*)p;
-	lua_pop(params.L, 1);
+	lua_pop(L, 1);
 	
-	lua_getfield(params.L,idx,"ip6_dst");
-	if (lua_type(params.L,-1)!=LUA_TSTRING) goto err;
-	p = lua_tolstring(params.L,-1,&l);
+	lua_getfield(L,idx,"ip6_dst");
+	if (lua_type(L,-1)!=LUA_TSTRING) goto err;
+	p = lua_tolstring(L,-1,&l);
 	if (l!=sizeof(struct in6_addr)) goto err;
 	ip6->ip6_dst = *(struct in6_addr*)p;
-	lua_pop(params.L, 1);
-	return lua_reconstruct_ip6exthdr(idx, ip6, len, last_proto, preserve_next);
+	lua_pop(L, 1);
+	return lua_reconstruct_ip6exthdr(L, idx, ip6, len, last_proto, preserve_next);
 err:
-	lua_pop(params.L, 1);
+	lua_pop(L, 1);
 
-	LUA_STACK_GUARD_LEAVE(params.L, 0)
+	LUA_STACK_GUARD_LEAVE(L, 0)
 	return false;
 }
 
@@ -1675,68 +1675,68 @@ static int luacall_reconstruct_ip6hdr(lua_State *L)
 
 	lua_reconstruct_extract_options(L, 2, NULL, &preserve_next, &last_proto);
 
-	if (!lua_reconstruct_ip6hdr(1,(struct ip6_hdr*)data, &len, last_proto, preserve_next))
+	if (!lua_reconstruct_ip6hdr(L, 1,(struct ip6_hdr*)data, &len, last_proto, preserve_next))
 		luaL_error(L, "invalid data for ip6hdr");
-	lua_pushlstring(params.L,data,len);
+	lua_pushlstring(L,data,len);
 
 	LUA_STACK_GUARD_RETURN(L,1)
 }
 
-bool lua_reconstruct_iphdr(int idx, struct ip *ip, size_t *len)
+bool lua_reconstruct_iphdr(lua_State *L, int idx, struct ip *ip, size_t *len)
 {
 	const char *p;
 	size_t l, lopt=0;
 
-	LUA_STACK_GUARD_ENTER(params.L)
+	LUA_STACK_GUARD_ENTER(L)
 
-	if (*len<sizeof(struct ip) || lua_type(params.L,-1)!=LUA_TTABLE) return false;
+	if (*len<sizeof(struct ip) || lua_type(L,-1)!=LUA_TTABLE) return false;
 
 	ip->ip_v = IPVERSION;
 
-	lua_getfield(params.L,idx,"ip_tos");
-	ip->ip_tos = (uint8_t)lua_tointeger(params.L,-1);
-	lua_pop(params.L, 1);
+	lua_getfield(L,idx,"ip_tos");
+	ip->ip_tos = (uint8_t)lua_tointeger(L,-1);
+	lua_pop(L, 1);
 
-	lua_getfield(params.L,idx,"ip_len");
-	ip->ip_len = htons((uint16_t)lua_tointeger(params.L,-1));
-	lua_pop(params.L, 1);
+	lua_getfield(L,idx,"ip_len");
+	ip->ip_len = htons((uint16_t)lua_tointeger(L,-1));
+	lua_pop(L, 1);
 
-	lua_getfield(params.L,idx,"ip_id");
-	ip->ip_id = htons((uint16_t)lua_tointeger(params.L,-1));
-	lua_pop(params.L, 1);
+	lua_getfield(L,idx,"ip_id");
+	ip->ip_id = htons((uint16_t)lua_tointeger(L,-1));
+	lua_pop(L, 1);
 
-	lua_getfield(params.L,idx,"ip_off");
-	ip->ip_off = htons((uint16_t)lua_tointeger(params.L,-1));
-	lua_pop(params.L, 1);
+	lua_getfield(L,idx,"ip_off");
+	ip->ip_off = htons((uint16_t)lua_tointeger(L,-1));
+	lua_pop(L, 1);
 
-	lua_getfield(params.L,idx,"ip_ttl");
-	if (lua_type(params.L,-1)!=LUA_TNUMBER) goto err;
-	ip->ip_ttl = (uint8_t)lua_tointeger(params.L,-1);
-	lua_pop(params.L, 1);
+	lua_getfield(L,idx,"ip_ttl");
+	if (lua_type(L,-1)!=LUA_TNUMBER) goto err;
+	ip->ip_ttl = (uint8_t)lua_tointeger(L,-1);
+	lua_pop(L, 1);
 
-	lua_getfield(params.L,idx,"ip_p");
-	if (lua_type(params.L,-1)!=LUA_TNUMBER) goto err;
-	ip->ip_p = (uint8_t)lua_tointeger(params.L,-1);
-	lua_pop(params.L, 1);
+	lua_getfield(L,idx,"ip_p");
+	if (lua_type(L,-1)!=LUA_TNUMBER) goto err;
+	ip->ip_p = (uint8_t)lua_tointeger(L,-1);
+	lua_pop(L, 1);
 
-	lua_getfield(params.L,idx,"ip_src");
-	if (lua_type(params.L,-1)!=LUA_TSTRING) goto err;
-	p = lua_tolstring(params.L,-1,&l);
+	lua_getfield(L,idx,"ip_src");
+	if (lua_type(L,-1)!=LUA_TSTRING) goto err;
+	p = lua_tolstring(L,-1,&l);
 	if (l!=sizeof(struct in_addr)) goto err;
 	ip->ip_src = *(struct in_addr*)p;
-	lua_pop(params.L, 1);
+	lua_pop(L, 1);
 
-	lua_getfield(params.L,idx,"ip_dst");
-	if (lua_type(params.L,-1)!=LUA_TSTRING) goto err;
-	p = lua_tolstring(params.L,-1,&l);
+	lua_getfield(L,idx,"ip_dst");
+	if (lua_type(L,-1)!=LUA_TSTRING) goto err;
+	p = lua_tolstring(L,-1,&l);
 	if (l!=sizeof(struct in_addr)) goto err;
 	ip->ip_dst = *(struct in_addr*)p;
-	lua_pop(params.L, 1);
+	lua_pop(L, 1);
 
-	lua_getfield(params.L,idx,"options");
-	if (lua_type(params.L,-1)==LUA_TSTRING)
+	lua_getfield(L,idx,"options");
+	if (lua_type(L,-1)==LUA_TSTRING)
 	{
-		p = lua_tolstring(params.L,-1,&lopt);
+		p = lua_tolstring(L,-1,&lopt);
 		if (p && lopt)
 		{
 			if (lopt>40 || ((sizeof(struct ip) + ((lopt+3)&~3)) > *len)) goto err;
@@ -1745,18 +1745,18 @@ bool lua_reconstruct_iphdr(int idx, struct ip *ip, size_t *len)
 			lopt = (lopt+3) & ~3;
 		}
 	}
-	lua_pop(params.L, 1);
+	lua_pop(L, 1);
 
 	*len = sizeof(struct ip) + lopt;
 	ip->ip_hl = *len >> 2;
 
 	ip4_fix_checksum(ip);
 
-	LUA_STACK_GUARD_LEAVE(params.L, 0)
+	LUA_STACK_GUARD_LEAVE(L, 0)
 	return true;
 err:
-	lua_pop(params.L, 1);
-	LUA_STACK_GUARD_LEAVE(params.L, 0)
+	lua_pop(L, 1);
+	LUA_STACK_GUARD_LEAVE(L, 0)
 	return false;
 }
 static int luacall_reconstruct_iphdr(lua_State *L)
@@ -1767,23 +1767,23 @@ static int luacall_reconstruct_iphdr(lua_State *L)
 
 	char data[60];
 	size_t l = sizeof(data);
-	if (!lua_reconstruct_iphdr(1,(struct ip*)&data,&l))
+	if (!lua_reconstruct_iphdr(L,1,(struct ip*)&data,&l))
 		luaL_error(L, "invalid data for iphdr");
-	lua_pushlstring(params.L,data,l);
+	lua_pushlstring(L,data,l);
 
 	LUA_STACK_GUARD_RETURN(L,1)
 }
 
-static bool lua_reconstruct_tcphdr_options(int idx, struct tcphdr *tcp, size_t *len)
+static bool lua_reconstruct_tcphdr_options(lua_State *L, int idx, struct tcphdr *tcp, size_t *len)
 {
 	if (*len<sizeof(struct tcphdr)) return false;
 
-	LUA_STACK_GUARD_ENTER(params.L)
+	LUA_STACK_GUARD_ENTER(L)
 
 	uint8_t filled = sizeof(struct tcphdr);
 
-	lua_getfield(params.L,idx,"options");
-	if (lua_type(params.L,-1)==LUA_TTABLE)
+	lua_getfield(L,idx,"options");
+	if (lua_type(L,-1)==LUA_TTABLE)
 	{
 		lua_Integer idx=0;
 		uint8_t *p, *data = (uint8_t*)(tcp+1);
@@ -1795,37 +1795,37 @@ static bool lua_reconstruct_tcphdr_options(int idx, struct tcphdr *tcp, size_t *
 
 		for (;;)
 		{
-			lua_rawgeti(params.L,-1,++idx);
-			if (lua_type(params.L,-1)==LUA_TNIL)
+			lua_rawgeti(L,-1,++idx);
+			if (lua_type(L,-1)==LUA_TNIL)
 			{
-				lua_pop(params.L, 1);
+				lua_pop(L, 1);
 				break;
 			}
 			else
 			{
 				// uses 'key' (at index -2) and 'value' (at index -1)
 
-				if (!left || lua_type(params.L,-1)!=LUA_TTABLE) goto err2;
+				if (!left || lua_type(L,-1)!=LUA_TTABLE) goto err2;
 
-				lua_getfield(params.L,-1, "kind");
-				if (lua_type(params.L,-1)!=LUA_TNUMBER) goto err3;
+				lua_getfield(L,-1, "kind");
+				if (lua_type(L,-1)!=LUA_TNUMBER) goto err3;
 
-				kind = (uint8_t)lua_tointeger(params.L,-1);
-				lua_pop(params.L, 1);
+				kind = (uint8_t)lua_tointeger(L,-1);
+				lua_pop(L, 1);
 
 				switch(kind)
 				{
 					case TCP_KIND_END:
 						*data = kind; data++; left--; filled++;
-						lua_pop(params.L, 1);
+						lua_pop(L, 1);
 						goto end;
 					case TCP_KIND_NOOP:
 						*data = kind; data++; left--; filled++;
 						break;
 					default:
-						lua_getfield(params.L,-1, "data");
+						lua_getfield(L,-1, "data");
 						l = 0;
-						p = lua_type(params.L,-1)==LUA_TSTRING ? (uint8_t*)lua_tolstring(params.L,-1,&l) : NULL;
+						p = lua_type(L,-1)==LUA_TSTRING ? (uint8_t*)lua_tolstring(L,-1,&l) : NULL;
 						if ((2+l)>left) goto err3;
 						if (p) memcpy(data+2,p,l);
 						l+=2;
@@ -1834,9 +1834,9 @@ static bool lua_reconstruct_tcphdr_options(int idx, struct tcphdr *tcp, size_t *
 						left -= l;
 						data += l;
 						filled += l;
-						lua_pop(params.L, 1);
+						lua_pop(L, 1);
 				}
-				lua_pop(params.L, 1);
+				lua_pop(L, 1);
 			}
 		}
 end:
@@ -1850,78 +1850,78 @@ end:
 	tcp->th_off = filled>>2;
 	*len = filled;
 
-	lua_pop(params.L, 1);
-	LUA_STACK_GUARD_LEAVE(params.L, 0)
+	lua_pop(L, 1);
+	LUA_STACK_GUARD_LEAVE(L, 0)
 	return true;
 err1:
-	lua_pop(params.L, 1);
+	lua_pop(L, 1);
 	goto err;
 err2:
-	lua_pop(params.L, 2);
+	lua_pop(L, 2);
 	goto err;
 err3:
-	lua_pop(params.L, 3);
+	lua_pop(L, 3);
 err:
-	LUA_STACK_GUARD_LEAVE(params.L, 0)
+	LUA_STACK_GUARD_LEAVE(L, 0)
 	return false;
 }
-bool lua_reconstruct_tcphdr(int idx, struct tcphdr *tcp, size_t *len)
+bool lua_reconstruct_tcphdr(lua_State *L, int idx, struct tcphdr *tcp, size_t *len)
 {
-	if (*len<sizeof(struct tcphdr) || lua_type(params.L,-1)!=LUA_TTABLE) return false;
+	if (*len<sizeof(struct tcphdr) || lua_type(L,-1)!=LUA_TTABLE) return false;
 
-	LUA_STACK_GUARD_ENTER(params.L)
+	LUA_STACK_GUARD_ENTER(L)
 
-	idx = lua_absindex(params.L, idx);
+	idx = lua_absindex(L, idx);
 
-	lua_getfield(params.L,idx,"th_sport");
-	if (lua_type(params.L,-1)!=LUA_TNUMBER) goto err;
-	tcp->th_sport = htons((uint16_t)lua_tointeger(params.L,-1));
-	lua_pop(params.L, 1);
+	lua_getfield(L,idx,"th_sport");
+	if (lua_type(L,-1)!=LUA_TNUMBER) goto err;
+	tcp->th_sport = htons((uint16_t)lua_tointeger(L,-1));
+	lua_pop(L, 1);
 
-	lua_getfield(params.L,idx,"th_dport");
-	if (lua_type(params.L,-1)!=LUA_TNUMBER) goto err;
-	tcp->th_dport = htons((uint16_t)lua_tointeger(params.L,-1));
-	lua_pop(params.L, 1);
+	lua_getfield(L,idx,"th_dport");
+	if (lua_type(L,-1)!=LUA_TNUMBER) goto err;
+	tcp->th_dport = htons((uint16_t)lua_tointeger(L,-1));
+	lua_pop(L, 1);
 
-	lua_getfield(params.L,idx,"th_seq");
-	if (lua_type(params.L,-1)!=LUA_TNUMBER) goto err;
-	tcp->th_seq = htonl((uint32_t)lua_tolint(params.L,-1));
-	lua_pop(params.L, 1);
+	lua_getfield(L,idx,"th_seq");
+	if (lua_type(L,-1)!=LUA_TNUMBER) goto err;
+	tcp->th_seq = htonl((uint32_t)lua_tolint(L,-1));
+	lua_pop(L, 1);
 
-	lua_getfield(params.L,idx,"th_ack");
-	if (lua_type(params.L,-1)!=LUA_TNUMBER) goto err;
-	tcp->th_ack = htonl((uint32_t)lua_tolint(params.L,-1));
-	lua_pop(params.L, 1);
+	lua_getfield(L,idx,"th_ack");
+	if (lua_type(L,-1)!=LUA_TNUMBER) goto err;
+	tcp->th_ack = htonl((uint32_t)lua_tolint(L,-1));
+	lua_pop(L, 1);
 
-	lua_getfield(params.L,idx,"th_x2");
-	tcp->th_x2 = (uint8_t)lua_tointeger(params.L,-1);
-	lua_pop(params.L, 1);
+	lua_getfield(L,idx,"th_x2");
+	tcp->th_x2 = (uint8_t)lua_tointeger(L,-1);
+	lua_pop(L, 1);
 
-	lua_getfield(params.L,idx,"th_flags");
-	if (lua_type(params.L,-1)!=LUA_TNUMBER) goto err;
-	tcp->th_flags = (uint8_t)lua_tointeger(params.L,-1);
-	lua_pop(params.L, 1);
+	lua_getfield(L,idx,"th_flags");
+	if (lua_type(L,-1)!=LUA_TNUMBER) goto err;
+	tcp->th_flags = (uint8_t)lua_tointeger(L,-1);
+	lua_pop(L, 1);
 
-	lua_getfield(params.L,idx,"th_win");
-	if (lua_type(params.L,-1)!=LUA_TNUMBER) goto err;
-	tcp->th_win = htons((uint16_t)lua_tointeger(params.L,-1));
-	lua_pop(params.L, 1);
+	lua_getfield(L,idx,"th_win");
+	if (lua_type(L,-1)!=LUA_TNUMBER) goto err;
+	tcp->th_win = htons((uint16_t)lua_tointeger(L,-1));
+	lua_pop(L, 1);
 
-	lua_getfield(params.L,idx,"th_sum");
-	tcp->th_sum = htons((uint16_t)lua_tointeger(params.L,-1));
-	lua_pop(params.L, 1);
+	lua_getfield(L,idx,"th_sum");
+	tcp->th_sum = htons((uint16_t)lua_tointeger(L,-1));
+	lua_pop(L, 1);
 
-	lua_getfield(params.L,idx,"th_urp");
-	tcp->th_urp = htons((uint16_t)lua_tointeger(params.L,-1));
-	lua_pop(params.L, 1);
+	lua_getfield(L,idx,"th_urp");
+	tcp->th_urp = htons((uint16_t)lua_tointeger(L,-1));
+	lua_pop(L, 1);
 
 	tcp->th_off = 5;
 
-	LUA_STACK_GUARD_LEAVE(params.L, 0)
-	return lua_reconstruct_tcphdr_options(idx, tcp, len);
+	LUA_STACK_GUARD_LEAVE(L, 0)
+	return lua_reconstruct_tcphdr_options(L, idx, tcp, len);
 err:
-	lua_pop(params.L, 1);
-	LUA_STACK_GUARD_LEAVE(params.L, 0)
+	lua_pop(L, 1);
+	LUA_STACK_GUARD_LEAVE(L, 0)
 	return false;
 }
 static int luacall_reconstruct_tcphdr(lua_State *L)
@@ -1932,42 +1932,42 @@ static int luacall_reconstruct_tcphdr(lua_State *L)
 
 	char data[60];
 	size_t len=sizeof(data);
-	if (!lua_reconstruct_tcphdr(1,(struct tcphdr*)data,&len))
+	if (!lua_reconstruct_tcphdr(L,1,(struct tcphdr*)data,&len))
 		luaL_error(L, "invalid data for tcphdr");
-	lua_pushlstring(params.L,data,len);
+	lua_pushlstring(L,data,len);
 
 	LUA_STACK_GUARD_RETURN(L,1)
 }
 
-bool lua_reconstruct_udphdr(int idx, struct udphdr *udp)
+bool lua_reconstruct_udphdr(lua_State *L, int idx, struct udphdr *udp)
 {
-	if (lua_type(params.L,-1)!=LUA_TTABLE) return false;
+	if (lua_type(L,-1)!=LUA_TTABLE) return false;
 
-	LUA_STACK_GUARD_ENTER(params.L)
+	LUA_STACK_GUARD_ENTER(L)
 
-	lua_getfield(params.L,idx,"uh_sport");
-	if (lua_type(params.L,-1)!=LUA_TNUMBER) goto err;
-	udp->uh_sport = htons((uint16_t)lua_tointeger(params.L,-1));
-	lua_pop(params.L, 1);
+	lua_getfield(L,idx,"uh_sport");
+	if (lua_type(L,-1)!=LUA_TNUMBER) goto err;
+	udp->uh_sport = htons((uint16_t)lua_tointeger(L,-1));
+	lua_pop(L, 1);
 
-	lua_getfield(params.L,idx,"uh_dport");
-	if (lua_type(params.L,-1)!=LUA_TNUMBER) goto err;
-	udp->uh_dport = htons((uint16_t)lua_tointeger(params.L,-1));
-	lua_pop(params.L, 1);
+	lua_getfield(L,idx,"uh_dport");
+	if (lua_type(L,-1)!=LUA_TNUMBER) goto err;
+	udp->uh_dport = htons((uint16_t)lua_tointeger(L,-1));
+	lua_pop(L, 1);
 
-	lua_getfield(params.L,idx,"uh_ulen");
-	udp->uh_ulen = htons((uint16_t)lua_tointeger(params.L,-1));
-	lua_pop(params.L, 1);
+	lua_getfield(L,idx,"uh_ulen");
+	udp->uh_ulen = htons((uint16_t)lua_tointeger(L,-1));
+	lua_pop(L, 1);
 
-	lua_getfield(params.L,idx,"uh_sum");
-	udp->uh_sum = htons((uint16_t)lua_tointeger(params.L,-1));
-	lua_pop(params.L, 1);
+	lua_getfield(L,idx,"uh_sum");
+	udp->uh_sum = htons((uint16_t)lua_tointeger(L,-1));
+	lua_pop(L, 1);
 
-	LUA_STACK_GUARD_LEAVE(params.L, 0)
+	LUA_STACK_GUARD_LEAVE(L, 0)
 	return true;
 err:
-	lua_pop(params.L, 1);
-	LUA_STACK_GUARD_LEAVE(params.L, 0)
+	lua_pop(L, 1);
+	LUA_STACK_GUARD_LEAVE(L, 0)
 	return false;
 }
 static int luacall_reconstruct_udphdr(lua_State *L)
@@ -1976,29 +1976,29 @@ static int luacall_reconstruct_udphdr(lua_State *L)
 
 	lua_check_argc(L,"reconstruct_udphdr",1);
 	struct udphdr udp;
-	if (!lua_reconstruct_udphdr(1,&udp))
+	if (!lua_reconstruct_udphdr(L,1,&udp))
 		luaL_error(L, "invalid data for udphdr");
-	lua_pushlstring(params.L,(char*)&udp,sizeof(udp));
+	lua_pushlstring(L,(char*)&udp,sizeof(udp));
 
 	LUA_STACK_GUARD_RETURN(L,1)
 }
 
-uint8_t lua_ip6_l4proto_from_dissect(int idx)
+uint8_t lua_ip6_l4proto_from_dissect(lua_State *L, int idx)
 {
 	int type;
 
-	lua_getfield(params.L,idx,"tcp");
-	type=lua_type(params.L,-1);
-	lua_pop(params.L,1);
+	lua_getfield(L,idx,"tcp");
+	type=lua_type(L,-1);
+	lua_pop(L,1);
 	if (type==LUA_TTABLE) return IPPROTO_TCP;
 
-	lua_getfield(params.L,idx,"udp");
-	type=lua_type(params.L,-1);
-	lua_pop(params.L,1);
+	lua_getfield(L,idx,"udp");
+	type=lua_type(L,-1);
+	lua_pop(L,1);
 	return type==LUA_TTABLE ? IPPROTO_UDP : IPPROTO_NONE;
 }
 
-bool lua_reconstruct_dissect(int idx, uint8_t *buf, size_t *len, bool badsum, bool ip6_preserve_next)
+bool lua_reconstruct_dissect(lua_State *L, int idx, uint8_t *buf, size_t *len, bool badsum, bool ip6_preserve_next)
 {
 	uint8_t *data = buf;
 	size_t l,lpayload,l3,left = *len;
@@ -2008,16 +2008,16 @@ bool lua_reconstruct_dissect(int idx, uint8_t *buf, size_t *len, bool badsum, bo
 	struct udphdr *udp=NULL;
 	const char *p;
 
-	LUA_STACK_GUARD_ENTER(params.L)
+	LUA_STACK_GUARD_ENTER(L)
 
-	idx = lua_absindex(params.L, idx);
+	idx = lua_absindex(L, idx);
 
-	lua_getfield(params.L,idx,"ip");
+	lua_getfield(L,idx,"ip");
 	l = left;
-	if (lua_type(params.L,-1)==LUA_TTABLE)
+	if (lua_type(L,-1)==LUA_TTABLE)
 	{
 		ip = (struct ip*)data;
-		if (!lua_reconstruct_iphdr(-1, ip, &l))
+		if (!lua_reconstruct_iphdr(L,-1, ip, &l))
 		{
 			DLOG_ERR("reconstruct_dissect: bad ip\n");
 			goto err;
@@ -2026,11 +2026,11 @@ bool lua_reconstruct_dissect(int idx, uint8_t *buf, size_t *len, bool badsum, bo
 	}
 	else
 	{
-		lua_pop(params.L, 1);
-		lua_getfield(params.L,idx,"ip6");
-		if (lua_type(params.L,-1)!=LUA_TTABLE) goto err;
+		lua_pop(L, 1);
+		lua_getfield(L,idx,"ip6");
+		if (lua_type(L,-1)!=LUA_TTABLE) goto err;
 		ip6 = (struct ip6_hdr*)data;
-		if (!lua_reconstruct_ip6hdr(-1, ip6, &l, lua_ip6_l4proto_from_dissect(idx), ip6_preserve_next))
+		if (!lua_reconstruct_ip6hdr(L,-1, ip6, &l, lua_ip6_l4proto_from_dissect(L,idx), ip6_preserve_next))
 		{
 			DLOG_ERR("reconstruct_dissect: bad ip6\n");
 			goto err;
@@ -2038,14 +2038,14 @@ bool lua_reconstruct_dissect(int idx, uint8_t *buf, size_t *len, bool badsum, bo
 	}
 	l3=l;
 	data+=l; left-=l;
-	lua_pop(params.L, 1);
+	lua_pop(L, 1);
 
-	lua_getfield(params.L,idx,"tcp");
+	lua_getfield(L,idx,"tcp");
 	l = left;
-	if (lua_type(params.L,-1)==LUA_TTABLE)
+	if (lua_type(L,-1)==LUA_TTABLE)
 	{
 		tcp = (struct tcphdr*)data;
-		if (!lua_reconstruct_tcphdr(-1, tcp, &l))
+		if (!lua_reconstruct_tcphdr(L, -1, tcp, &l))
 		{
 			DLOG_ERR("reconstruct_dissect: bad tcp\n");
 			goto err;
@@ -2053,29 +2053,29 @@ bool lua_reconstruct_dissect(int idx, uint8_t *buf, size_t *len, bool badsum, bo
 	}
 	else
 	{
-		lua_pop(params.L, 1);
-		lua_getfield(params.L,idx,"udp");
+		lua_pop(L, 1);
+		lua_getfield(L,idx,"udp");
 		l = sizeof(struct udphdr);
-		if (lua_type(params.L,-1)!=LUA_TTABLE || left<l) goto err;
+		if (lua_type(L,-1)!=LUA_TTABLE || left<l) goto err;
 		udp = (struct udphdr*)data;
-		if (!lua_reconstruct_udphdr(-1, udp))
+		if (!lua_reconstruct_udphdr(L, -1, udp))
 		{
 			DLOG_ERR("reconstruct_dissect: bad udp\n");
 			goto err;
 		}
 	}
 	data+=l; left-=l;
-	lua_pop(params.L, 1);
+	lua_pop(L, 1);
 
-	lua_getfield(params.L,idx,"payload");
-	p = lua_tolstring(params.L,-1,&lpayload);
+	lua_getfield(L,idx,"payload");
+	p = lua_tolstring(L,-1,&lpayload);
 	if (p && lpayload)
 	{
 		if (left<lpayload) goto err;
 		memcpy(data,p,lpayload);
 		data+=lpayload; left-=lpayload;
 	}
-	lua_pop(params.L, 1);
+	lua_pop(L, 1);
 
 	l = data-buf;
 	if (udp)
@@ -2145,11 +2145,11 @@ bool lua_reconstruct_dissect(int idx, uint8_t *buf, size_t *len, bool badsum, bo
 	}
 	
 	*len = l;
-	LUA_STACK_GUARD_LEAVE(params.L, 0)
+	LUA_STACK_GUARD_LEAVE(L, 0)
 	return true;
 err:
-	lua_pop(params.L, 1);
-	LUA_STACK_GUARD_LEAVE(params.L, 0)
+	lua_pop(L, 1);
+	LUA_STACK_GUARD_LEAVE(L, 0)
 	return false;
 }
 static int luacall_reconstruct_dissect(lua_State *L)
@@ -2163,11 +2163,11 @@ static int luacall_reconstruct_dissect(lua_State *L)
 	size_t l = sizeof(buf);
 
 	bool ip6_preserve_next, badsum;
-	lua_reconstruct_extract_options(params.L, 2, &badsum, &ip6_preserve_next, NULL);
+	lua_reconstruct_extract_options(L, 2, &badsum, &ip6_preserve_next, NULL);
 
-	if (!lua_reconstruct_dissect(1, buf, &l, badsum, ip6_preserve_next))
+	if (!lua_reconstruct_dissect(L, 1, buf, &l, badsum, ip6_preserve_next))
 		luaL_error(L, "invalid dissect data");
-	lua_pushlstring(params.L,(char*)buf,l);
+	lua_pushlstring(L,(char*)buf,l);
 
 	LUA_STACK_GUARD_RETURN(L,1)
 }
@@ -2185,7 +2185,7 @@ static int luacall_dissect(lua_State *L)
 	struct dissect dis;
 	proto_dissect_l3l4(data, len, &dis);
 
-	lua_push_dissect(&dis);
+	lua_push_dissect(L, &dis);
 
 	LUA_STACK_GUARD_RETURN(L,1)
 }
@@ -2206,7 +2206,7 @@ static int luacall_csum_ip4_fix(lua_State *L)
 	memcpy(data2, data, l);
 	ip4_fix_checksum((struct ip*)data2);
 
-	lua_pushlstring(params.L,(char*)data2,l);
+	lua_pushlstring(L,(char*)data2,l);
 
 	LUA_STACK_GUARD_RETURN(L,1)
 }
@@ -2422,9 +2422,9 @@ static int luacall_rawsend_dissect(lua_State *L)
 
 	luaL_checktype(L,1,LUA_TTABLE);
 	lua_rawsend_extract_options(L,2, &repeats, &fwmark, &ifout);
-	lua_reconstruct_extract_options(params.L, 3, &badsum, &ip6_preserve_next, NULL);
+	lua_reconstruct_extract_options(L, 3, &badsum, &ip6_preserve_next, NULL);
 
-	if (!lua_reconstruct_dissect(1, buf, &len, badsum, ip6_preserve_next))
+	if (!lua_reconstruct_dissect(L, 1, buf, &len, badsum, ip6_preserve_next))
 		luaL_error(L, "invalid dissect data");
 
 	if (!extract_dst(buf, len, (struct sockaddr*)&sa))
@@ -2492,7 +2492,7 @@ static int luacall_resolve_multi_pos(lua_State *L)
 	ResolveMultiPos(data, len, l7payload, markers, ctm, pos, &ctpos);
 
 	lua_newtable(L);
-	for(i=0;i<ctpos;i++) lua_pushi_int(i+1,pos[i]+!bZeroBased);
+	for(i=0;i<ctpos;i++) lua_pushi_int(L,i+1,pos[i]+!bZeroBased);
 
 	LUA_STACK_GUARD_RETURN(L,1)
 }
@@ -2539,8 +2539,8 @@ static int luacall_resolve_range(lua_State *L)
 	}
 
 	lua_newtable(L);
-	lua_pushi_int(1,pos[0]+!bZeroBased);
-	lua_pushi_int(2,pos[1]+!bZeroBased);
+	lua_pushi_int(L,1,pos[0]+!bZeroBased);
+	lua_pushi_int(L,2,pos[1]+!bZeroBased);
 
 	LUA_STACK_GUARD_RETURN(L,1)
 }
@@ -2609,22 +2609,22 @@ static int lua_cfunc_zstream_gc(lua_State *L)
 	}
 	return 0;
 }
-static void lua_mt_init_zstream()
+static void lua_mt_init_zstream(lua_State *L)
 {
-	LUA_STACK_GUARD_ENTER(params.L)
+	LUA_STACK_GUARD_ENTER(L)
 
-	luaL_newmetatable(params.L, "userdata_zstream");
-	lua_pushcfunction(params.L, lua_cfunc_zstream_gc);
-	lua_setfield(params.L, -2, "__gc");
-	lua_pop(params.L,1);
+	luaL_newmetatable(L, "userdata_zstream");
+	lua_pushcfunction(L, lua_cfunc_zstream_gc);
+	lua_setfield(L, -2, "__gc");
+	lua_pop(L,1);
 
-	LUA_STACK_GUARD_LEAVE(params.L, 0)
+	LUA_STACK_GUARD_LEAVE(L, 0)
 }
-static struct userdata_zs *lua_uzs(int idx, bool bInflate)
+static struct userdata_zs *lua_uzs(lua_State *L, int idx, bool bInflate)
 {
-	struct userdata_zs *uzs = (struct userdata_zs *)luaL_checkudata(params.L, idx, "userdata_zstream");
-	if (!uzs->valid) luaL_error(params.L, "gzip stream is not valid");
-	if (bInflate!=uzs->inflate) luaL_error(params.L, "gzip stream role mismatch");
+	struct userdata_zs *uzs = (struct userdata_zs *)luaL_checkudata(L, idx, "userdata_zstream");
+	if (!uzs->valid) luaL_error(L, "gzip stream is not valid");
+	if (bInflate!=uzs->inflate) luaL_error(L, "gzip stream role mismatch");
 	return uzs;
 }
 static int luacall_gunzip_init(lua_State *L)
@@ -2661,7 +2661,7 @@ static int luacall_gunzip_end(lua_State *L)
 
 	LUA_STACK_GUARD_ENTER(L)
 
-	struct userdata_zs *uzs = lua_uzs(1, true);
+	struct userdata_zs *uzs = lua_uzs(L, 1, true);
 	inflateEnd(&uzs->zs);
 	uzs->valid = false;
 
@@ -2680,7 +2680,7 @@ static int luacall_gunzip_inflate(lua_State *L)
 	int r;
 	size_t bufsize=0, size=0;
 	uint8_t *buf=NULL, *newbuf;
-	struct userdata_zs *uzs = lua_uzs(1, true);
+	struct userdata_zs *uzs = lua_uzs(L, 1, true);
 	uzs->zs.next_in = (z_const Bytef*)luaL_checklstring(L,2,&l);
 	uzs->zs.avail_in = (uInt)l;
 	size_t bufchunk = argc>=3 ? luaL_checkinteger(L,3) : l*4;
@@ -2762,7 +2762,7 @@ static int luacall_gzip_end(lua_State *L)
 
 	LUA_STACK_GUARD_ENTER(L)
 
-	struct userdata_zs *uzs = lua_uzs(1, false);
+	struct userdata_zs *uzs = lua_uzs(L, 1, false);
 	deflateEnd(&uzs->zs);
 	uzs->valid = false;
 
@@ -2781,7 +2781,7 @@ static int luacall_gzip_deflate(lua_State *L)
 	int r;
 	size_t bufsize=0, size=0;
 	uint8_t *buf=NULL, *newbuf;
-	struct userdata_zs *uzs = lua_uzs(1, false);
+	struct userdata_zs *uzs = lua_uzs(L, 1, false);
 	if (argc>=2 && !lua_isnil(L,2))
 	{
 		uzs->zs.next_in = (z_const Bytef*)luaL_checklstring(L,2,&l);
@@ -2912,8 +2912,6 @@ static bool lua_basic_init()
 		}
 	}
 	lua_settop(params.L, 0);
-
-	lua_mt_init_zstream();
 
 	return true;
 }
@@ -3371,6 +3369,11 @@ static void lua_init_functions(void)
 	LUA_STACK_GUARD_LEAVE(params.L, 0)
 }
 
+static void lua_init_mt()
+{
+	lua_mt_init_zstream(params.L);
+}
+
 bool lua_init(void)
 {
 	DLOG("\nLUA INIT\n");
@@ -3380,6 +3383,7 @@ bool lua_init(void)
 	lua_init_blobs();
 	lua_init_const();
 	lua_init_functions();
+	lua_init_mt();
 	if (!lua_init_scripts()) goto err;
 	if (!lua_desync_functions_exist()) goto err;
 

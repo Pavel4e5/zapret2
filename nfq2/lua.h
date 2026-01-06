@@ -57,49 +57,49 @@ int lua_absindex(lua_State *L, int idx);
 // push - create object and push to the stack
 // pushf - create object and set it as a named field of a table already present on the stack
 // pushi - create object and set it as a index field of a table already present on the stack
-void lua_pushf_nil(const char *field);
-void lua_pushi_nil(lua_Integer idx);
-void lua_pushf_bool(const char *field, bool b);
-void lua_pushi_bool(lua_Integer idx, bool b);
-void lua_pushf_str(const char *field, const char *str);
-void lua_pushi_str(lua_Integer idx, const char *str);
-void lua_pushf_lstr(const char *field, const char *str, size_t len);
-void lua_pushi_lstr(lua_Integer idx, const char *str, size_t len);
-void lua_pushf_int(const char *field, lua_Integer v);
-void lua_pushi_int(lua_Integer idx, lua_Integer v);
-void lua_pushf_lint(const char *field, int64_t v);
-void lua_pushi_lint(lua_Integer idx, int64_t v);
-void lua_pushf_number(const char *field, lua_Number v);
-void lua_pushi_number(lua_Integer idx, lua_Number v);
-void lua_push_raw(const void *v, size_t l);
-void lua_pushf_raw(const char *field, const void *v, size_t l);
-void lua_pushi_raw(lua_Integer idx, const void *v, size_t l);
-void lua_pushf_reg(const char *field, int ref);
-void lua_pushf_lud(const char *field, void *p);
-void lua_pushf_table(const char *field);
-void lua_pushi_table(lua_Integer idx);
+void lua_pushf_nil(lua_State *L, const char *field);
+void lua_pushi_nil(lua_State *L, lua_Integer idx);
+void lua_pushf_bool(lua_State *L, const char *field, bool b);
+void lua_pushi_bool(lua_State *L, lua_Integer idx, bool b);
+void lua_pushf_str(lua_State *L, const char *field, const char *str);
+void lua_pushi_str(lua_State *L, lua_Integer idx, const char *str);
+void lua_pushf_lstr(lua_State *L, const char *field, const char *str, size_t len);
+void lua_pushi_lstr(lua_State *L, lua_Integer idx, const char *str, size_t len);
+void lua_pushf_int(lua_State *L, const char *field, lua_Integer v);
+void lua_pushi_int(lua_State *L, lua_Integer idx, lua_Integer v);
+void lua_pushf_lint(lua_State *L, const char *field, int64_t v);
+void lua_pushi_lint(lua_State *L, lua_Integer idx, int64_t v);
+void lua_pushf_number(lua_State *L, const char *field, lua_Number v);
+void lua_pushi_number(lua_State *L, lua_Integer idx, lua_Number v);
+void lua_push_raw(lua_State *L, const void *v, size_t l);
+void lua_pushf_raw(lua_State *L, const char *field, const void *v, size_t l);
+void lua_pushi_raw(lua_State *L, lua_Integer idx, const void *v, size_t l);
+void lua_pushf_reg(lua_State *L, const char *field, int ref);
+void lua_pushf_lud(lua_State *L, const char *field, void *p);
+void lua_pushf_table(lua_State *L, const char *field);
+void lua_pushi_table(lua_State *L, lua_Integer idx);
 
-void lua_push_blob(int idx_desync, const char *blob);
-void lua_pushf_blob(int idx_desync, const char *field, const char *blob);
+void lua_push_blob(lua_State *L, int idx_desync, const char *blob);
+void lua_pushf_blob(lua_State *L, int idx_desync, const char *field, const char *blob);
 
-void lua_pushf_tcphdr_options(const struct tcphdr *tcp, size_t len);
-void lua_pushf_tcphdr(const struct tcphdr *tcp, size_t len);
-void lua_pushf_udphdr(const struct udphdr *udp, size_t len);
-void lua_pushf_iphdr(const struct ip *ip, size_t len);
-void lua_pushf_ip6hdr(const struct ip6_hdr *ip6, size_t len);
-void lua_push_dissect(const struct dissect *dis);
-void lua_pushf_dissect(const struct dissect *dis);
-void lua_pushf_ctrack(const t_ctrack *ctrack, const t_ctrack_positions *tpos, bool bIncoming);
-void lua_pushf_args(const struct str2_list_head *args, int idx_desync, bool subst_prefix);
-void lua_pushf_pos(const char *name, const struct packet_pos *pos);
-void lua_pushf_range(const char *name, const struct packet_range *range);
-void lua_pushf_global(const char *field, const char *global);
+void lua_pushf_tcphdr_options(lua_State *L, const struct tcphdr *tcp, size_t len);
+void lua_pushf_tcphdr(lua_State *L, const struct tcphdr *tcp, size_t len);
+void lua_pushf_udphdr(lua_State *L, const struct udphdr *udp, size_t len);
+void lua_pushf_iphdr(lua_State *L, const struct ip *ip, size_t len);
+void lua_pushf_ip6hdr(lua_State *L, const struct ip6_hdr *ip6, size_t len);
+void lua_push_dissect(lua_State *L, const struct dissect *dis);
+void lua_pushf_dissect(lua_State *L, const struct dissect *dis);
+void lua_pushf_ctrack(lua_State *L, const t_ctrack *ctrack, const t_ctrack_positions *tpos, bool bIncoming);
+void lua_pushf_args(lua_State *L, const struct str2_list_head *args, int idx_desync, bool subst_prefix);
+void lua_pushf_pos(lua_State *L, const char *name, const struct packet_pos *pos);
+void lua_pushf_range(lua_State *L, const char *name, const struct packet_range *range);
+void lua_pushf_global(lua_State *L, const char *field, const char *global);
 
-bool lua_reconstruct_ip6hdr(int idx, struct ip6_hdr *ip6, size_t *len, uint8_t last_proto, bool preserve_next);
-bool lua_reconstruct_iphdr(int idx, struct ip *ip, size_t *len);
-bool lua_reconstruct_tcphdr(int idx, struct tcphdr *tcp, size_t *len);
-bool lua_reconstruct_udphdr(int idx, struct udphdr *udp);
-bool lua_reconstruct_dissect(int idx, uint8_t *buf, size_t *len, bool badsum, bool ip6_preserve_next);
+bool lua_reconstruct_ip6hdr(lua_State *L, int idx, struct ip6_hdr *ip6, size_t *len, uint8_t last_proto, bool preserve_next);
+bool lua_reconstruct_iphdr(lua_State *L, int idx, struct ip *ip, size_t *len);
+bool lua_reconstruct_tcphdr(lua_State *L, int idx, struct tcphdr *tcp, size_t *len);
+bool lua_reconstruct_udphdr(lua_State *L, int idx, struct udphdr *udp);
+bool lua_reconstruct_dissect(lua_State *L, int idx, uint8_t *buf, size_t *len, bool badsum, bool ip6_preserve_next);
 
 #define MAGIC_CTX	0xE73DC935
 typedef struct {
@@ -112,4 +112,4 @@ typedef struct {
 	bool incoming,cancel;
 } t_lua_desync_context;
 
-bool lua_instance_cutoff_check(const t_lua_desync_context *ctx, bool bIn);
+bool lua_instance_cutoff_check(lua_State *L, const t_lua_desync_context *ctx, bool bIn);

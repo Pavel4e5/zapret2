@@ -796,7 +796,7 @@ static uint8_t desync(
 
 			if (b_cutoff_all)
 			{
-				if (lua_instance_cutoff_check(&ctx, bIncoming))
+				if (lua_instance_cutoff_check(params.L, &ctx, bIncoming))
 					DLOG("* lua '%s' : voluntary cutoff\n", instance);
 				else if (check_pos_cutoff(pos, range))
 				{
@@ -827,43 +827,43 @@ static uint8_t desync(
 		{
 			// create arg table that persists across multiple desync function calls
 			lua_newtable(params.L);
-			lua_pushf_dissect(dis);
-			lua_pushf_ctrack(ctrack, tpos, bIncoming);
-			lua_pushf_int("profile_n", dp->n);
-			if (dp->name) lua_pushf_str("profile_name", dp->name);
-			if (dp->n_tpl) lua_pushf_int("template_n", dp->n_tpl);
-			if (dp->name_tpl) lua_pushf_str("template_name", dp->name_tpl);
-			if (dp->cookie) lua_pushf_str("cookie", dp->cookie);
-			lua_pushf_bool("outgoing", !bIncoming);
-			lua_pushf_str("ifin", (ifin && *ifin) ? ifin : NULL);
-			lua_pushf_str("ifout", (ifout && *ifout) ? ifout : NULL);
-			lua_pushf_lint("fwmark", fwmark);
-			lua_pushf_table("target");
+			lua_pushf_dissect(params.L, dis);
+			lua_pushf_ctrack(params.L, ctrack, tpos, bIncoming);
+			lua_pushf_int(params.L, "profile_n", dp->n);
+			if (dp->name) lua_pushf_str(params.L, "profile_name", dp->name);
+			if (dp->n_tpl) lua_pushf_int(params.L, "template_n", dp->n_tpl);
+			if (dp->name_tpl) lua_pushf_str(params.L, "template_name", dp->name_tpl);
+			if (dp->cookie) lua_pushf_str(params.L, "cookie", dp->cookie);
+			lua_pushf_bool(params.L, "outgoing", !bIncoming);
+			lua_pushf_str(params.L, "ifin", (ifin && *ifin) ? ifin : NULL);
+			lua_pushf_str(params.L, "ifout", (ifout && *ifout) ? ifout : NULL);
+			lua_pushf_lint(params.L, "fwmark", fwmark);
+			lua_pushf_table(params.L, "target");
 			lua_getfield(params.L,-1,"target");
-			if (sdport) lua_pushf_int("port",sdport);
-			if (sdp4) lua_pushf_lstr("ip",(const char*)sdp4,sizeof(*sdp4));
-			if (sdp6) lua_pushf_lstr("ip6",(const char*)sdp6,sizeof(*sdp6));
+			if (sdport) lua_pushf_int(params.L, "port",sdport);
+			if (sdp4) lua_pushf_lstr(params.L, "ip",(const char*)sdp4,sizeof(*sdp4));
+			if (sdp6) lua_pushf_lstr(params.L, "ip6",(const char*)sdp6,sizeof(*sdp6));
 			lua_pop(params.L,1);
-			lua_pushf_bool("replay", !!replay_piece_count);
+			lua_pushf_bool(params.L, "replay", !!replay_piece_count);
 			if (replay_piece_count)
 			{
-				lua_pushf_int("replay_piece", replay_piece+1);
-				lua_pushf_int("replay_piece_count", replay_piece_count);
-				lua_pushf_bool("replay_piece_last", (replay_piece+1)>=replay_piece_count);
+				lua_pushf_int(params.L, "replay_piece", replay_piece+1);
+				lua_pushf_int(params.L, "replay_piece_count", replay_piece_count);
+				lua_pushf_bool(params.L, "replay_piece_last", (replay_piece+1)>=replay_piece_count);
 			}
-			lua_pushf_str("l7payload", l7payload_str(l7payload));
-			lua_pushf_str("l7proto", l7proto_str(l7proto));
-			lua_pushf_int("reasm_offset", reasm_offset);
-			lua_pushf_raw("reasm_data", rdata_payload, rlen_payload);
-			lua_pushf_raw("decrypt_data", data_decrypt, len_decrypt);
+			lua_pushf_str(params.L, "l7payload", l7payload_str(l7payload));
+			lua_pushf_str(params.L, "l7proto", l7proto_str(l7proto));
+			lua_pushf_int(params.L, "reasm_offset", reasm_offset);
+			lua_pushf_raw(params.L, "reasm_data", rdata_payload, rlen_payload);
+			lua_pushf_raw(params.L, "decrypt_data", data_decrypt, len_decrypt);
 			//if (ctrack) lua_pushf_reg("instance_cutoff", ctrack->lua_instance_cutoff);
 			if (dis->tcp)
 			{
 				// recommended mss value for generated packets
 				if (rpos && rpos->mss)
-					lua_pushf_int("tcp_mss", rpos->mss);
+					lua_pushf_int(params.L, "tcp_mss", rpos->mss);
 				else
-					lua_pushf_global("tcp_mss", "DEFAULT_MSS");
+					lua_pushf_global(params.L, "tcp_mss", "DEFAULT_MSS");
 			}
 			ref_arg = luaL_ref(params.L, LUA_REGISTRYINDEX);
 
@@ -874,7 +874,7 @@ static uint8_t desync(
 				desync_instance(func->func, dp->n, ctx.func_n, instance, sizeof(instance));
 				ctx.instance = instance;
 
-				if (!lua_instance_cutoff_check(&ctx, bIncoming))
+				if (!lua_instance_cutoff_check(params.L, &ctx, bIncoming))
 				{
 					range = bIncoming ? &func->range_in : &func->range_out;
 					if (check_pos_range(pos, range))
@@ -899,10 +899,10 @@ static uint8_t desync(
 							}
 							lua_pushlightuserdata(params.L, &ctx);
 							lua_rawgeti(params.L, LUA_REGISTRYINDEX, ref_arg);
-							lua_pushf_args(&func->args, -1, true);
-							lua_pushf_str("func", func->func);
-							lua_pushf_int("func_n", ctx.func_n);
-							lua_pushf_str("func_instance", instance);
+							lua_pushf_args(params.L, &func->args, -1, true);
+							lua_pushf_str(params.L, "func", func->func);
+							lua_pushf_int(params.L, "func_n", ctx.func_n);
+							lua_pushf_str(params.L, "func_instance", instance);
 
 							// lua should not store and access ctx outside of this call
 							// if this happens make our best to prevent access to bad memory
@@ -960,7 +960,7 @@ static uint8_t desync(
 			}
 			else
 			{
-				b = lua_reconstruct_dissect(-1, mod_pkt, len_mod_pkt, false, false);
+				b = lua_reconstruct_dissect(params.L, -1, mod_pkt, len_mod_pkt, false, false);
 				lua_pop(params.L, 2);
 				if (!b)
 				{
