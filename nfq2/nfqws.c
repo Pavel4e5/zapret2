@@ -377,6 +377,7 @@ ex:
 #ifdef HAS_FILTER_SSID
 	wlan_info_deinit();
 #endif
+	rawsend_cleanup();
 	return res;
 err:
 	if (Fpid) fclose(Fpid);
@@ -576,6 +577,7 @@ exiterr:
 	if (fd[0] != -1) close(fd[0]);
 	if (fd[1] != -1) close(fd[1]);
 	lua_shutdown();
+	rawsend_cleanup();
 	return res;
 }
 
@@ -660,7 +662,6 @@ static int win_main()
 				else if (errno == ENODEV)
 				{
 					DLOG_CONDUP("logical network disappeared. deinitializing windivert.\n");
-					rawsend_cleanup();
 					break;
 				}
 				else if (errno == EINTR)
@@ -711,6 +712,7 @@ static int win_main()
 ex:
 	win_dark_deinit();
 	lua_shutdown();
+	rawsend_cleanup();
 	return res;
 }
 
@@ -2689,7 +2691,6 @@ int main(int argc, char **argv)
 #error unsupported OS
 #endif
 ex:
-	rawsend_cleanup();
 	cleanup_params(&params);
 #ifdef __CYGWIN__
 	if (hMutexArg)
