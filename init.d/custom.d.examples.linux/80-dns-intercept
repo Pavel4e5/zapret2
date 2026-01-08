@@ -37,16 +37,19 @@ zapret_custom_firewall_nft()
 	# router
 	nft_print_op "oifname @lanif $rule" "nfqws forward (qnum $QNUM)" "4+6"
 	nft_add_chain forward_dns_feed "type filter hook forward priority mangle;"
+	nft_flush_chain forward_dns_feed
 	nft_add_rule forward_dns_feed oifname @lanif $rule
 
 	# dns client
 	nft_print_op "$rule" "nfqws input (qnum $QNUM)" "4+6"
 	nft_add_chain input_dns_feed "type filter hook input priority mangle;"
+	nft_flush_chain input_dns_feed
 	nft_add_rule input_dns_feed $rule
 
 	# dns server
 	nft_print_op "$rule" "nfqws output (qnum $QNUM)" "4+6"
 	nft_add_chain output_dns_feed "type filter hook output priority mangle;"
+	nft_flush_chain output_dns_feed
 	nft_add_rule output_dns_feed $rule
 }
 
@@ -54,6 +57,6 @@ zapret_custom_firewall_nft_flush()
 {
 	local chain
 	for chain in forward_dns_feed input_dns_feed output_dns_feed; do
-		nft_delete_chain $chain 2>/dev/null
+		nft_del_chain $chain 2>/dev/null
 	done
 }

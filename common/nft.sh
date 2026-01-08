@@ -24,7 +24,7 @@ nft_add_chain()
 	# $2 - params
 	nft add chain inet $ZAPRET_NFT_TABLE $1 "{ $2 }"
 }
-nft_delete_chain()
+nft_del_chain()
 {
 	# $1 - chain
 	nft delete chain inet $ZAPRET_NFT_TABLE $1
