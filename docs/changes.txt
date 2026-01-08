@@ -167,4 +167,4 @@ v0.8.1
 
 * nfqws2, zapret-lib: gzip compression and decompression
 * nfqws2: ignore trailing spaces and tabs in hostlists and ipsets. "host.com   " or "1.2.3.4 " are ok now
-
+* init.d: 99-lan-filter custom script
