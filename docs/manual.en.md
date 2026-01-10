@@ -2,56 +2,55 @@
 
 # Contents
 
-- [Table of Contents](#table-of-contents)
 - [Introduction](#introduction)
-- [Project Structure](#project-structure)
-- [Traffic Processing Flow](#traffic-processing-flow)
-- [Traffic Interception from the OS Kernel](#traffic-interception-from-the-os-kernel)
-  - [Traffic Interception in the Linux Kernel](#traffic-interception-in-the-linux-kernel)
-    - [Traffic Interception using nftables](#traffic-interception-using-nftables)
-    - [Traffic Interception using iptables](#traffic-interception-using-iptables)
-  - [Traffic Interception in the FreeBSD Kernel](#traffic-interception-in-the-freebsd-kernel)
-  - [Traffic Interception in the OpenBSD Kernel](#traffic-interception-in-the-openbsd-kernel)
-  - [Traffic Interception in the Windows Kernel](#traffic-interception-in-the-windows-kernel)
+- [Project ptructure](#project-structure)
+- [Traffic processing scheme](#traffic-processing-scheme)
+- [Traffic interception from the OS Kernel](#traffic-interception-from-the-os-kernel)
+  - [Traffic interception in the Linux Kernel](#traffic-interception-in-the-linux-kernel)
+    - [Traffic interception using nftables](#traffic-interception-using-nftables)
+    - [Traffic interception using iptables](#traffic-interception-using-iptables)
+  - [Traffic interception in the FreeBSD Kernel](#traffic-interception-in-the-freebsd-kernel)
+  - [Traffic interception in the OpenBSD Kernel](#traffic-interception-in-the-openbsd-kernel)
+  - [Traffic interception in the Windows Kernel](#traffic-interception-in-the-windows-kernel)
 - [nfqws2](#nfqws2)
-  - [General Principles for Setting Parameters](#general-principles-for-setting-parameters)
-  - [Full List of Options](#full-list-of-options)
-  - [Using Multiple Profiles](#using-multiple-profiles)
-    - [Profile Templates](#profile-templates)
-    - [Filtering by Lists](#filtering-by-lists)
-    - [Autohostlist Failure Detector](#autohostlist-failure-detector)
-    - [Filter by Network Presence](#filter-by-network-presence)
-  - [Server Mode](#server-mode)
-  - [IP Cache](#ip-cache)
+  - [General principles for setting parameters](#general-principles-for-setting-parameters)
+  - [Full list of options](#full-list-of-options)
+  - [Using multiple profiles](#using-multiple-profiles)
+    - [Profile templates](#profile-templates)
+    - [Filtering by lists](#filtering-by-lists)
+    - [Autohostlist failure detector](#autohostlist-failure-detector)
+    - [Network presence filter](#network-presence-filter)
+  - [Server mode](#server-mode)
+  - [IP cache](#ip-cache)
   - [Signals](#signals)
   - [Debugging](#debugging)
-  - [Virtual Machines](#virtual-machines)
+  - [Virtual machines](#virtual-machines)
   - [Sandbox](#sandbox)
-  - [Calling Lua Code](#calling-lua-code)
-    - [Passing Blobs](#passing-blobs)
-    - [Intra-profile Filters](#intra-profile-filters)
-    - [Typical Instance Invocation Scheme within a Profile](#typical-instance-invocation-scheme-within-a-profile)
+  - [Calling Lua code](#calling-lua-code)
+    - [Passing blobs](#passing-blobs)
+    - [In-profile filters](#in-profile-filters)
+    - [Typical instance invocation scheme within a profile](#typical-instance-invocation-scheme-within-a-profile)
   - [Lua Function Prototype](#lua-function-prototype)
-    - [Structure of the desync Table](#structure-of-the-desync-table)
-    - [Dissection Structure](#dissection-structure)
-    - [Specifics of Receiving Multi-packet Payloads](#specifics-of-receiving-multi-packet-payloads)
-    - [track Structure](#track-structure)
-- [C Interface for nfqws2](#c-interface-for-nfqws2)
-  - [Base Constants](#base-constants)
-  - [Standard Blobs](#standard-blobs)
-  - [Environment Variables](#environment-variables)
-  - [C Functions](#c-functions)
+    - [Structure of the desync table](#structure-of-the-desync-table)
+    - [Dissect Structure](#dissect-structure)
+    - [Handling multi-packet payloads](#handling-multi-packet-payloads)
+    - [The track table structure](#the-track-table-structure)
+- [nfqws2 C interface](#nfqws2-c-interface)
+  - [Base constants](#base-constants)
+  - [Standard blobs](#standard-blobs)
+  - [Environment variables](#environment-variables)
+  - [C functions](#c-functions)
     - [Logging](#logging)
-    - [IP Conversion](#ip-conversion)
-    - [Bitwise Operations](#bitwise-operations)
-    - [Operations with Unsigned Numbers](#operations-with-unsigned-numbers)
+    - [IP conversion](#ip-conversion)
+    - [Bitwise operations](#bitwise-operations)
+    - [Unsigned number operations](#unsigned-number-operations)
       - [uX](#ux)
       - [buX](#bux)
       - [swapX](#swapx)
       - [uXadd](#uxadd)
-    - [Integer Division](#integer-division)
+    - [Integer division](#integer-division)
       - [divint](#divint)
-    - [Random Data Generation](#random-data-generation)
+    - [Random data generation](#random-data-generation)
       - [brandom](#brandom)
     - [Parsing](#parsing)
       - [parse\_hex](#parse_hex)
@@ -65,31 +64,31 @@
     - [Compression](#compression)
       - [gunzip](#gunzip)
       - [gzip](#gzip)
-    - [System Functions](#system-functions)
+    - [System functions](#system-functions)
       - [uname](#uname)
       - [clock\_gettime](#clock_gettime)
       - [getpid](#getpid)
-    - [Packet Handling Options](#packet-handling-options)
+    - [Packet handling options](#packet-handling-options)
       - [standard reconstruct](#standard-reconstruct)
       - [standard rawsend](#standard-rawsend)
-    - [Dissection and Reconstruction](#dissection-and-reconstruction)
+    - [Dissection and reconstruction](#dissection-and-reconstruction)
       - [dissect](#dissect)
       - [reconstruct\_dissect](#reconstruct_dissect)
       - [reconstruct\_hdr](#reconstruct_hdr)
       - [csum\_fix](#csum_fix)
-    - [Receiving and Sending Packets](#receiving-and-sending-packets)
+    - [Receiving and sending packets](#receiving-and-sending-packets)
       - [rawsend](#rawsend)
       - [raw\_packet](#raw_packet)
-    - [Working with Payloads](#working-with-payloads)
+    - [Working with payloads](#working-with-payloads)
       - [markers](#markers)
       - [resolve\_pos](#resolve_pos)
-    - [Instance Execution Management](#instance-execution-management)
+    - [Instance execution management](#instance-execution-management)
       - [instance\_cutoff](#instance_cutoff)
       - [lua\_cutoff](#lua_cutoff)
       - [execution\_plan](#execution_plan)
       - [execution\_plan\_cancel](#execution_plan_cancel)
-- [zapret-lib.lua Base Function Library](#zapret-liblua-base-function-library)
-  - [Base Desync Functions](#base-desync-functions)
+- [zapret-lib.lua base function library](#zapret-liblua-base-function-library)
+  - [Base desync functions](#base-desync-functions)
 
 - [luaexec](#luaexec)
     - [pass](#pass)
@@ -98,37 +97,37 @@
     - [posdebug](#posdebug)
     - [detect\_payload\_str](#detect_payload_str)
     - [desync\_orchestrator\_example](#desync_orchestrator_example)
-  - [Utility Functions](#utility-functions)
+  - [Utility functions](#utility-functions)
     - [var\_debug](#var_debug)
     - [deepcopy](#deepcopy)
     - [logical\_xor](#logical_xor)
     - [array\_search](#array_search)
-  - [String Operations](#string-operations)
+  - [String operations](#string-operations)
     - [in\_list](#in_list)
     - [find\_next\_line](#find_next_line)
-  - [Raw String Handling](#raw-string-handling)
+  - [Raw string handling](#raw-string-handling)
     - [hex](#hex)
     - [pattern](#pattern)
     - [blob](#blob)
-  - [TCP Sequence Number Handling](#tcp-sequence-number-handling)
-  - [Position Handling](#position-handling)
+  - [TCP sequence number handling](#tcp-sequence-number-handling)
+  - [Position handling](#position-handling)
   - [Dissection](#dissection)
     - [dissect\_url](#dissect_url)
     - [dissect\_nld](#dissect_nld)
     - [dissect\_http](#dissect_http)
     - [dissect\_tls](#dissect_tls)
-  - [Working with L3 and L4 Protocol Elements](#working-with-l3-and-l4-protocol-elements)
+  - [Working with L3 and L4 protocol elements](#working-with-l3-and-l4-protocol-elements)
     - [find\_tcp\_options](#find_tcp_options)
     - [ip6hdr](#ip6hdr)
     - [packet\_len](#packet_len)
-  - [Working with Hostnames](#working-with-hostnames)
+  - [Working with hostnames](#working-with-hostnames)
     - [genhost](#genhost)
     - [host\_ip](#host_ip)
-  - [File Name and Path Operations](#file-name-and-path-operations)
-  - [Reading and Writing Files](#reading-and-writing-files)
-  - [Data Compression](#data-compression)
+  - [File name and path operations](#file-name-and-path-operations)
+  - [Reading and writing files](#reading-and-writing-files)
+  - [Data compression](#data-compression)
   - [autottl](#autottl)
-  - [Dissect Operations](#dissect-operations)
+  - [Operations with dissects](#operations-with-dissects)
     - [standard ipid](#standard-ipid)
     - [standard fooling](#standard-fooling)
     - [standard ipfrag](#standard-ipfrag)
@@ -141,8 +140,8 @@
     - [rawsend\_dissect\_ipfrag](#rawsend_dissect_ipfrag)
     - [rawsend\_dissect\_segmented](#rawsend_dissect_segmented)
     - [rawsend\_payload\_segmented](#rawsend_payload_segmented)
-  - [Standard Direction and Payload Filters](#standard-direction-and-payload-filters)
-  - [Working with Multi-packet Payloads](#working-with-multi-packet-payloads)
+  - [Standard direction and payload filters](#standard-direction-and-payload-filters)
+  - [Working with multi-packet payloads](#working-with-multi-packet-payloads)
   - [Orchestration](#orchestration)
     - [instance\_cutoff\_shim](#instance_cutoff_shim)
     - [cutoff\_shim\_check](#cutoff_shim_check)
@@ -154,20 +153,20 @@
     - [plan\_clear](#plan_clear)
     - [orchestrate](#orchestrate)
     - [replay\_execution\_plan](#replay_execution_plan)
-- [zapret-antidpi.lua: DPI Attack Program Library](#zapret-antidpilua-dpi-attack-program-library)
-  - [Standard Parameter Sets](#standard-parameter-sets)
+- [zapret-antidpi.lua: DPI attack program library](#zapret-antidpilua-dpi-attack-program-library)
+  - [Standard parameter sets](#standard-parameter-sets)
     - [standard direction](#standard-direction)
     - [standard payload](#standard-payload)
-  - [Core Functions](#core-functions)
+  - [Base Functions](#base-functions)
     - [drop](#drop)
     - [send](#send)
     - [pktmod](#pktmod)
-  - [HTTP Fooling](#http-fooling)
+  - [HTTP fooling](#http-fooling)
     - [http\_hostcase](#http_hostcase)
     - [http\_domcase](#http_domcase)
     - [http\_methodeol](#http_methodeol)
     - [http\_unixeol](#http_unixeol)
-  - [Window Size Replacement](#window-size-replacement)
+  - [Window size replacement](#window-size-replacement)
     - [wsize](#wsize)
     - [wssize](#wssize)
   - [Fakes](#fakes)
@@ -175,7 +174,7 @@
     - [tls\_client\_hello\_clone](#tls_client_hello_clone)
     - [fake](#fake)
     - [rst](#rst)
-  - [TCP Segmentation](#tcp-segmentation)
+  - [TCP segmentation](#tcp-segmentation)
     - [multisplit](#multisplit)
     - [multidisorder](#multidisorder)
     - [multidisorder\_legacy](#multidisorder_legacy)
@@ -190,15 +189,15 @@
     - [synack](#synack)
     - [synack\_split](#synack_split)
 
-- [zapret-auto.lua Automation and Orchestration Library](#zapret-autolua-automation-and-orchestration-library)
-  - [State Storage](#state-storage)
+- [zapret-auto.lua automation and orchestration Library](#zapret-autolua-automation-and-orchestration-library)
+  - [State storage](#state-storage)
     - [automate\_conn\_record](#automate_conn_record)
     - [standard\_hostkey](#standard_hostkey)
     - [automate\_host\_record](#automate_host_record)
-  - [Success and Failure Handling](#success-and-failure-handling)
+  - [Handling successes and failures](#handling-successes-and-failures)
     - [automate\_failure\_counter](#automate_failure_counter)
     - [automate\_failure\_counter\_reset](#automate_failure_counter_reset)
-  - [Success and Failure Detection](#success-and-failure-detection)
+  - [Success and failure detection](#success-and-failure-detection)
     - [automate\_failure\_check](#automate_failure_check)
     - [standard\_success\_detector](#standard_success_detector)
     - [standard\_failure\_detector](#standard_failure_detector)
@@ -207,34 +206,34 @@
     - [repeater](#repeater)
     - [condition](#condition)
     - [stopif](#stopif)
-    - [iff Functions](#iff-functions)
+    - [iff functions](#iff-functions)
       - [cond\_true](#cond_true)
       - [cond\_false](#cond_false)
       - [cond\_random](#cond_random)
       - [cond\_payload\_str](#cond_payload_str)
-- [Auxiliary Programs](#auxiliary-programs)
+- [Auxiliary programs](#auxiliary-programs)
   - [ip2net](#ip2net)
   - [mdig](#mdig)
 - [blockcheck2](#blockcheck2)
-  - [DNS Check](#dns-check)
-  - [Main Testing Modes](#main-testing-modes)
-    - [Multiple Attempts](#multiple-attempts)
-    - [Scanning Levels](#scanning-levels)
-    - [Supported Protocols](#supported-protocols)
-    - [IP Block Check](#ip-block-check)
-      - [Examples of Domain-Only Blocking Without IP Blocking](#examples-of-domain-only-blocking-without-ip-blocking)
-      - [Example of Full IP Block or TCP Port Block in the Absence of Domain Blocking](#example-of-full-ip-block-or-tcp-port-block-in-the-absence-of-domain-blocking)
+  - [DNS check](#dns-check)
+  - [Main testing modes](#main-testing-modes)
+    - [Multiple attempts](#multiple-attempts)
+    - [Scanning levels](#scanning-levels)
+    - [Supported protocols](#supported-protocols)
+    - [IP block check](#ip-block-check)
+      - [Examples of domain-only blocking without IP blocking](#examples-of-domain-only-blocking-without-ip-blocking)
+      - [Example of full IP block or TCP port block in the absence of domain blocking](#example-of-full-ip-block-or-tcp-port-block-in-the-absence-of-domain-blocking)
     - [Standard Tests](#standard-tests)
-      - [standard Test](#standard-test)
-      - [custom Test](#custom-test)
+      - [standard test](#standard-test)
+      - [custom test](#custom-test)
   - [Summary](#summary)
-  - [Shell Variables](#shell-variables)
-  - [Why It Won't Open](#why-it-wont-open)
-- [Startup Scripts](#startup-scripts)
-  - [Config File](#config-file)
-  - [List Management System](#list-management-system)
-    - [Standard List Files](#standard-list-files)
-    - [ipset Scripts](#ipset-scripts)
+  - [Shell variables](#shell-variables)
+  - [Why it won't open](#why-it-wont-open)
+- [Startup scripts](#startup-scripts)
+  - [Config file](#config-file)
+  - [List management system](#list-management-system)
+    - [Standard list files](#standard-list-files)
+    - [ipset scripts](#ipset-scripts)
       - [clear\_lists.sh](#clear_listssh)
       - [create\_ipset.sh](#create_ipsetsh)
       - [get\_config.sh](#get_configsh)
@@ -246,25 +245,26 @@
       - [get\_refilter\_\*.sh](#get_refilter_sh)
       - [get\_reestr\_\*.sh](#get_reestr_sh)
     - [ipban System](#ipban-system)
-  - [Initialization Scripts](#initialization-scripts)
-    - [Firewall Integration](#firewall-integration)
-      - [OpenWRT Firewall Integration](#openwrt-firewall-integration)
-    - [Custom Scripts](#custom-scripts)
-      - [Custom Helpers](#custom-helpers)
-        - [Retrieving Dynamic Numbers](#retrieving-dynamic-numbers)
-        - [Working with Daemons](#working-with-daemons)
+  - [Startup scripts](#startup-scripts)
+    - [Firewall integration](#firewall-integration)
+      - [OpenWRT firewall integration](#openwrt-firewall-integration)
+    - [Custom scripts](#custom-scripts)
+      - [Custom helpers](#custom-helpers)
+        - [Retrieving dynamic numbers](#retrieving-dynamic-numbers)
+        - [Working with daemons](#working-with-daemons)
         - [Working with iptables](#working-with-iptables)
         - [Working with nftables](#working-with-nftables)
-        - [Additional Functions](#additional-functions)
+        - [Additional functions](#additional-functions)
   - [Installer](#installer)
-    - [OpenWRT Integration Principles](#openwrt-integration-principles)
-    - [OpenWRT Cheat Sheet](#openwrt-cheat-sheet)
-    - [systemd Integration Principles](#systemd-integration-principles)
-    - [systemd Cheat Sheet](#systemd-cheat-sheet)
-    - [openrc Integration Principles](#openrc-integration-principles)
-    - [openrc Cheat Sheet](#openrc-cheat-sheet)
-  - [Alternative Installation on systemd](#alternative-installation-on-systemd)
-  - [Other Firmwares](#other-firmwares)
+    - [OpenWRT integration principles](#openwrt-integration-principles)
+    - [OpenWRT cheat Sheet](#openwrt-cheat-sheet)
+    - [systemd integration principles](#systemd-integration-principles)
+    - [systemd cheat sheet](#systemd-cheat-sheet)
+    - [openrc integration principles](#openrc-integration-principles)
+    - [openrc cheat Sheet](#openrc-cheat-sheet)
+  - [Alternative installation on systemd](#alternative-installation-on-systemd)
+  - [Other firmwares](#other-firmwares)
+
 
 # Introduction
 
@@ -341,9 +341,9 @@ After the entire chain of profile instances has been executed, the C code receiv
 
 Finally, nfqws2 returns to waiting for the next packet, and the cycle repeats.
 
-# Intercepting Traffic from the OS Kernel
+# Traffic interception from the OS Kernel
 
-## Intercepting Traffic in the Linux Kernel
+## Traffic interception in the Linux Kernel
 
 This is achieved using `iptables` or `nftables` via the NFQUEUE mechanism.
 `nftables` is preferred because it allows working with traffic after NAT, whereas `iptables` does not. This is critical when processing forwarded traffic. With `iptables`, post-NAT interception is impossible; therefore, certain techniques that break NAT cannot be implemented on forwarded traffic using `iptables`.
@@ -354,7 +354,7 @@ If you have to choose between `iptables` and `nftables`, you should definitely c
 The following test examples are intended for custom startup systems or manual execution.
 The `zapret` startup scripts generate the necessary rules automatically; you do not need to write `ip/nf tables` rules yourself.
 
-### Intercepting Traffic with nftables
+### Traffic interception using nftables
 
 A test table for a POSTNAT scheme.
 It ensures the interception of the first incoming and outgoing packets of a flow after NAT (if present).
@@ -400,7 +400,7 @@ Deleting the test table:
 nft delete table inet ztest
 ```
 
-### Traffic Interception via iptables
+### Traffic interception using iptables
 
 > [!CAUTION]
 > Starting with Linux kernel 6.17, there is a kernel configuration parameter `CONFIG_NETFILTER_XTABLES_LEGACY`, which may be "not set" by default in some distributions. Disabling this setting turns off `iptables-legacy`. This is part of the ongoing iptables deprecation process. However, `iptables-nft` will continue to function as it utilizes the `nftables` backend.
@@ -463,7 +463,7 @@ iptables -F -t mangle
 ip6tables -F -t mangle
 ```
 
-## Traffic Interception in the FreeBSD Kernel
+## Traffic interception in the FreeBSD Kernel
 
 The primary challenge when intercepting traffic on non-Linux systems is the inability to intercept only the initial packets of a stream. You can only intercept the entire stream in a specific direction.
 FreeBSD is particularly limited in this regard, as it lacks raw payload filtering capabilities (filtering based on packet content).
@@ -507,7 +507,7 @@ ipfw add $RULE divert $PORT_DIVERT udp from any $PORTS_UDP to any in not diverte
 While traffic interception via `pf divert-to` is theoretically possible, the loop prevention mechanism is broken in practice, making `pf` unusable for this purpose.
 On pfSense and OPNsense, additional steps are required to enable both `pf` and `ipfw` simultaneously. This frequently leads to issues, conflicts, and glitches.
 
-## Traffic Interception in the OpenBSD Kernel
+## Traffic interception in the OpenBSD Kernel
 
 OpenBSD relies solely on `pf`. Its `divert` loop prevention mechanism works correctly.
 
@@ -550,7 +550,7 @@ pass out quick on $IFACE_WAN proto udp to port { $PORTS_UDP } divert-packet port
 > [!CAUTION]
 > FreeBSD uses a different version of `pf` with slightly different syntax. Furthermore, `pf` in FreeBSD is effectively broken for this use case because loop prevention does not work. While macOS also uses `pf`, `ipdivert` has been removed from its kernel, so these rules will not function.
 
-## Traffic Interception in the Windows Kernel
+## Traffic interception in the Windows Kernel
 
 Windows lacks native tools for traffic interception. Instead, a third-party solution is used: the `windivert` driver.
 Control is integrated directly into the `winws2` process.
@@ -586,7 +586,7 @@ For UDP protocols—especially those where the port is not fixed—it is prefera
 
 # nfqws2
 
-## General Principles for Setting Parameters
+## General principles for setting parameters
 
 All `nfqws2` parameters are passed via the command line or loaded from a file using the same format.
 `nfqws2` utilizes the standard `getopt_long_only` parser.
@@ -598,7 +598,7 @@ If this is used, all other command-line parameters will be ignored.
 Options will be read from the file as if its contents were entered directly into the command line.
 This feature is not supported in the Android and OpenBSD versions.
 
-## Full List of Options
+## Full list of options
 
 General parameters for all versions — nfqws2, dvtws2, winws2.
 
@@ -730,7 +730,7 @@ For TLS, HTTP, and QUIC protocols, there is typically only one jump because the 
 When writing strategies, they should be designed with this jump logic in mind.
 If a strategy needs to start from the very first packet and continue working after a profile change, you must duplicate the calls across all profiles the flow might pass through.
 
-### Profile Templates
+### Profile templates
 
 When dealing with many complex and repetitive strategies, it can be convenient to use templates.
 A template is essentially a profile that is not active; instead, it is placed in a separate template list.
@@ -758,7 +758,7 @@ In this example, there are 3 active profiles and 3 templates, one of which impor
 
 Any parameters applicable to profiles, including filters, are allowed within templates.
 
-### Filtering by Lists
+### Filtering by lists
 
 If hostlist filters are used—meaning there is at least one domain in any hostlist or an autohostlist is specified—the profile will never be selected if the hostname is missing.
 The case where there is no autohostlist and all list files are empty is treated as if no hostlist filter exists.
@@ -781,7 +781,7 @@ On the next request, the host will be treated as if it were in the inclusion lis
 - In the static versions of `--ipset-ip` and `--hostlist-domains`, domains are separated by commas. The `#` and `^` symbols are also supported in static hostlists.
 - Gzip compression is supported for all list files.
 
-### Auto-hostlist Failure Detector
+### Auto-hostlist failure detector
 
 The detector only triggers when a hostname is present. A failure is defined as:
 
@@ -805,7 +805,7 @@ When the counter reaches `--hostlist-auto-fail-threshold`, the host is added to 
 
 Most success and failure criteria require analyzing both incoming and outgoing traffic; therefore, sufficient traffic interception is necessary for these criteria to trigger.
 
-### Network Presence Filter
+### Network presence filter
 
 If, for example, you need to apply one strategy for Wi-Fi and another for Ethernet, this is done via a filter based on the interface name.
 But what if you connect to different Wi-Fi networks or plug your Ethernet cable into different locations?
@@ -822,7 +822,7 @@ Another way to address this—and not just for Wi-Fi—is by using the Network L
 
 An NLM network is the result of the system detecting a connection to a specific network. You might connect to a router via Wi-Fi or Ethernet, but it will be recognized as the same network. To distinguish between networks, the system typically looks at the gateway's MAC address. NLM technology is interesting and useful, but unfortunately, adequate management tools were only available in Windows 7. In newer systems, you have to dig into PowerShell or the Registry to manually assign connections to the correct GUIDs if the system categorizes them incorrectly. Alternatively, you can simply use the list of GUIDs automatically assigned by the system.
 
-## Server Mode
+## Server mode
 
 Certain types of manipulations can be performed not only from the client side but also from the server side. `nfqws2` was designed to fully support both inbound and outbound traffic, on both the client and server sides.
 
@@ -856,7 +856,7 @@ If the router operates without NAT (typical for IPv6), the stage at which packet
 
 In BSD, `ipfw` or `pf` rules are typically written this way—"xmit wan", "recv wan"—supplemented by filters for destination ports on `xmit` and source ports on `recv` (or vice versa for server mode). This reliably identifies the traffic intended for interception based on its direction.
 
-## IP Cache
+## IP cache
 
 The `ipcache` is an in-memory data structure that allows the process to store information using an IP address and interface name as a key. This data can later be retrieved and used to fill in missing information. Currently, it is used in the following scenarios:
 
@@ -898,7 +898,7 @@ Error messages are sent to `stderr`.
 The `--dry-run` parameter allows you to test the validity of command-line options and the accessibility of used files under dropped privileges.
 `--dry-run` does not initialize the Lua engine and therefore cannot detect Lua syntax errors.
 
-## Virtual Machines
+## Virtual machines
 
 Most desktop hypervisors break bypass techniques when the network is connected via the hypervisor's built-in NAT. This is the default setting. A bridged connection is required. This issue is confirmed to exist in both VMware and VirtualBox.
 
@@ -929,7 +929,7 @@ There is a simple way to pass a writable directory to the Lua code using the `--
 
 On the Lua side, dangerous functions are removed: `os.execute`, `io.popen`, `package.loadlib`, and the `debug` module. On GitHub, `nfqws2` executables are built with a version of LuaJIT that excludes FFI.
 
-## Calling Lua Code
+## Calling Lua code
 
 Lua code is invoked in two stages:
 
@@ -943,7 +943,7 @@ Colons and the `%`, `#` symbols at the beginning can be escaped with a backslash
 
 Both `--lua-init` and `--lua-desync` can be used multiple times. Execution follows the exact order in which they are specified.
 
-### Passing Blobs
+### Passing blobs
 
 A blob is a binary data block of any size that can be loaded into a Lua variable by the C code at program startup.
 
@@ -955,7 +955,7 @@ A blob is a binary data block of any size that can be loaded into a Lua variable
 
 Direct file operations from Lua code are not recommended unless absolutely necessary. Lua code runs with restricted privileges; intended operations might fail or behave inconsistently across different operating systems and environments. Blob loading occurs before entering the sandbox, providing a higher chance of success.
 
-### In-Profile Filters
+### In-profile Filters
 
 These come in three types: `--payload`, `--in-range`, and `--out-range`. Filter values remain active from the moment they are specified until the next override.
 
@@ -980,7 +980,7 @@ The following counter modes are available:
 nfqws2 monitors the upper bounds of counters for all Lua instances.
 If the upper bound for a direction is exceeded in all instances, or if the instances voluntarily enter a "cutoff" state for that direction, a "lua cutoff" occurs—disabling Lua processing for the current thread. This is designed to conserve CPU resources, as checking a single boolean flag requires virtually no processing power.
 
-### Typical Instance Call Scheme Within a Profile
+### Typical instance invocation scheme within a profile
 
 The following example demonstrates a setup where we attempt to use specific "fakes" for `tls_client_hello` and `http_req` payloads. If these fail, the system switches to `multidisorder` for TLS and `multisplit` for HTTP. If those also fail, it cycles through the strategies.
 
@@ -1006,7 +1006,7 @@ The specific mechanics of these functions are less important here; the focus is 
 - The `--payload` directive applies to the two instances following it.
 - The line `--lua-desync=fake:blob=fake_default_tls:badsum:strategy=1` calls the `fake` function with three arguments: `blob`, `badsum`, and `strategy`. The value for the `badsum` argument is an empty string.
 
-## Lua Function Prototype
+## Lua function prototype
 
 A standard Lua function uses the following prototype:
 
@@ -1023,7 +1023,7 @@ The function returns a verdict for the current packet: `VERDICT_PASS`, `VERDICT_
 
 The results of all lua-desync instances are aggregated: VERDICT_MODIFY overrides VERDICT_PASS, and VERDICT_DROP overrides them both.
 
-### The desync table structure
+### Structure of the desync table
 
 The best way to study the desync structure is by examining its actual content while running the `pktdebug` test desync function from `zapret-lib.lua`.
 
@@ -1292,7 +1292,7 @@ desync
 | arg                | table  | all instance arguments and their values                                                      | % and # substitutions have already been resolved          |
 | dis                | table  | dissection of the current packet                                                             |                                                           |
 
-### Dissection Structure
+### Dissect structure
 
 The dissection includes the fields `ip`, `ip6`, `tcp`, and `udp`.
 `ip` is present in the case of IPv4, while `ip6` is present for IPv6.
@@ -1389,7 +1389,7 @@ All multi-byte numeric values are automatically converted from network byte orde
 | kind | [option type](https://www.iana.org/assignments/tcp-parameters/tcp-parameters.xhtml): TCP_KIND_END, TCP_KIND_NOOP, TCP_KIND_MSS, TCP_KIND_SCALE, TCP_KIND_SACK_PERM, TCP_KIND_SACK, TCP_KIND_TS, TCP_KIND_MD5, TCP_KIND_AO, TCP_KIND_FASTOPEN |
 | data | the option data block excluding kind and length; absent for TCP_KIND_END and TCP_KIND_NOOP |
 
-### Handling Multi-Packet Payloads
+### Handling multi-packet payloads
 
 The assembly of a multi-packet payload is referred to as [reasm](#handling-multi-packet-payloads) (short for reassemble).
 It is performed automatically by the C code if a payload requiring assembly is encountered, conntrack is available, and assembly has not been disabled via `--reasm-disable`.
@@ -1405,7 +1405,7 @@ In the case of standard TCP reassembly, the `desync.reasm_data` field is populat
 
 During QUIC reassembly, `desync.reasm_data` is absent. Instead, the `desync.decrypt_data` field is provided, containing the result of decryption and defragmentation of all payloads within the assembly. For QUIC, `reasm_data` contains the `tls_client_hello` without the record layer.
 
-### The track Structure
+### The track table structure
 
 The `track` table is present in `desync` only if a conntrack entry was found for the current packet.
 It may not be found if the `nfqws2` process did not receive the SYN or SYN-ACK packet.
@@ -1470,11 +1470,11 @@ However, the latter simple comparison will not work correctly, whereas the forme
 It is impossible to track anything beyond that using sequences. Always keep in mind that when transferring large volumes of data, sequences cannot serve as a counter.
 The `p*counter` fields are 64-bit counters, so they do not suffer from this issue.
 
-# nfqws2 C Interface
+# nfqws2 C interface
 
 Before executing `--lua-init`, the C code sets up base constants, blobs, and C functions.
 
-## Base Constants
+## Base constants
 
 | Field | Type | Description | Note |
 | :--- | :--- | :--- | :--- |
@@ -1516,20 +1516,20 @@ Before executing `--lua-init`, the C code sets up base constants, blobs, and C f
 | IPV6_FLOWINFO_MASK                                                                                                                                                                                                                                                 | number | flow label and traffic class in ip6_flow                                                         | 0x0FFFFFFF                                          |
 | IPPROTO_IP<br>IPPROTO_IPV6<br>IPPROTO_ICMP<br>IPPROTO_TCP<br>IPPROTO_UDP<br>IPPROTO_ICMPV6<br>IPPROTO_HOPOPTS<br>IPPROTO_ROUTING<br>IPPROTO_FRAGMENT<br>IPPROTO_AH<br>IPPROTO_ESP<br>IPPROTO_DSTOPTS<br>IPPROTO_MH<br>IPPROTO_HIP<br>IPPROTO_SHIM6<br>IPPROTO_NONE | number | [IP protocol numbers](https://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml) | used in IPv4 and IPv6                               |
 
-## Standard Blobs
+## Standard blobs
 
 - fake_default_tls - a fake Firefox TLS ClientHello without Kyber, SNI=www.microsoft.com
 - fake_default_http - an HTTP request to <www.iana.org>
 - fake_default_quic - 0x40 + 619*0x00
 
-## Environment Variables
+## Environment variables
 
 | env       | Purpose |
 | :-------- |:---------- |
 | WRITEABLE | A directory writable by Lua. Corresponds to the `--writeable` option. |
 | APPDATALOW | (Windows only) The AppData location for the low mandatory level. This is also writable, but using `--writeable` is preferred for cross-platform compatibility. |
 
-## C Functions
+## C functions
 
 ### Logging
 
@@ -1545,7 +1545,7 @@ These functions output a string to the `--debug` log, appending an EOL (End of L
 - DLOG_CONDUP - standard output + console output if logging to a file or syslog is enabled.
 - DLOG_ERR - similar to DLOG_CONDUP, but all console output is directed to stderr.
 
-### IP Conversion
+### IP conversion
 
 ```
 function ntop(raw_ip)
@@ -1555,7 +1555,7 @@ function pton(string_ip)
 - ntop converts a raw byte string containing an IPv4 or IPv6 address into a human-readable string representation. The IP version is determined by the size of `raw_ip` (4 or 16 bytes). If the size does not match, it returns `nil`.
 - pton converts a string representation of an IPv4 or IPv6 address into a `raw_ip` byte string. If the string is not a valid IPv4 or IPv6 address, it returns `nil`.
 
-### Bitwise Operations
+### Bitwise operations
 
 Lua 5.1, which LuaJIT is based on, lacks built-in bitwise operations. LuaJIT includes a built-in `bitop` module.
 Lua 5.3 has built-in bitwise operators but lacks the `bitop` module. While it can be loaded, this is only possible if static compilation is not used and the module is installed. The nfqws2 version on GitHub is built statically.
@@ -1597,7 +1597,7 @@ function bitset(u48, bit_from, bit_to, set)
 - bitget extracts a number from a range of bits in `u48` from `bit_from` to `bit_to`. Bit numbering starts at 0.
 - bitset writes the value `set` into the bit range of `u48` from `bit_from` to `bit_to`. Bit numbering starts at 0. Higher bits of `set` that exceed the range `(bit_to - bit_from)` are ignored.
 
-### Unsigned Number Operations
+### Unsigned number operations
 
 Bit depth is always critical when performing unsigned number operations, as it determines the result.
 Consequently, all functions include the bit depth in their name. If arguments exceeding the specified bit depth are passed, an error is triggered.
@@ -1654,7 +1654,7 @@ Functions for adding an arbitrary number of unsigned integers of a specified bit
 Operands must fit within the specified bit-depth; otherwise, an error is raised.
 Any carry-over beyond the bit-depth is ignored (modular arithmetic).
 
-### Integer Division
+### Integer division
 
 #### divint
 
@@ -1812,7 +1812,7 @@ function gzip_deflate(zstream, uncompressed_data, expected_compressed_chunk_size
 * `gzip_deflate` compresses the next chunk of data. Data can be fed in parts. The compressed chunks are concatenated to form the complete data set. To finalize the stream after all data has been fed, the function must be called with `uncompressed_data=nil` or `uncompressed_data=""`. It returns two arguments: the compressed data and a boolean flag indicating the end of the gzip stream. If a gzip error occurs or memory is insufficient, it returns `nil`.
 * `expected_compressed_chunk_size` is an optional parameter used to optimize memory allocation for compressed data. If the buffer is insufficient, `realloc` is called, which copies memory blocks and impacts performance. The size should be chosen based on the expected compression ratio with a small margin. The default is half the size of `uncompressed_data`.
 
-### System Functions
+### System functions
 
 #### uname
 
@@ -1841,7 +1841,7 @@ function gettid()
 - `getpid()` returns the current process identifier (PID).
 - `gettid()` returns the current thread identifier (TID).
 
-### Packet Handling Options
+### Packet handling options
 
 The following functions use standard sets of options: `rawsend` and `reconstruct`.
 These are tables with specific fields. If `nil` is passed, it is assumed that no fields are set.
@@ -1891,7 +1891,7 @@ No changes are made, including to the `ip_id`.
 If you need the `ip_id` to change, you can set it to 0; Windows will then automatically fill in incrementing values.
 Other systems will not do this. If you need to manage the `ip_id` manually across all systems, `repeats` is not the right choice.
 
-### Dissection and Reconstruction
+### Dissection and reconstruction
 
 Dissection is the process of obtaining a structured representation of a raw IP packet.
 Reconstruction is the reverse process—generating a raw IP packet from a dissect.
@@ -1958,7 +1958,7 @@ Direct reconstruction of individual headers is rarely necessary. Typically, all 
 However, in special cases—for example, if you need to construct an ICMP packet—you will have to assemble it piece by piece and use `rawsend` for transmission.
 You will almost certainly need `csum_ip4_fix` in such scenarios.
 
-### Receiving and Sending Packets
+### Receiving and sending Packets
 
 #### rawsend
 
@@ -1980,7 +1980,7 @@ function raw_packet(ctx)
 Upon invocation, Lua functions receive a ready-made dissect of the current packet. The raw representation is rarely required, so it is not provided to the desync engine by default to conserve resources.
 It can be retrieved on demand using the `raw_packet` function.
 
-### Working with Payloads
+### Working with payloads
 
 #### Markers
 
@@ -2019,7 +2019,7 @@ function resolve_range(blob,l7payload_type,marker_list[,strict,zero_based_pos])
 - If `zero_based_pos=true` is set, all positions start from 0; otherwise, they start from 1, as is standard in Lua.
 - An `error` is raised for invalid values of `l7payload_type`, `marker`, `marker_list`, or if the number of markers for `resolve_range` is not equal to 2.
 
-### Instance Execution Management
+### Instance execution management
 
 #### instance_cutoff
 
@@ -2087,12 +2087,12 @@ function execution_plan_cancel(ctx)
 A one-time cancellation of all subsequent instances within a profile.
 The instance performing the cancellation takes over the coordination of further actions and is called the orchestrator.
 
-# zapret-lib.lua Core Function Library
+# zapret-lib.lua core function library
 
 Nearly every function includes detailed comments regarding its purpose and parameters.
 Reviewing the Lua code and comments will provide a better understanding of what a specific function does and how to call it.
 
-## Core Desync Functions
+## Core desync functions
 
 These can be used directly in `--lua-desync`.
 
@@ -2161,7 +2161,7 @@ function desync_orchestrator_example(ctx, desync)
 
 A test orchestrator. It performs no special logic other than executing the original execution plan as-is.
 
-## Utility Functions
+## Utility functions
 
 ### var_debug
 
@@ -2202,7 +2202,7 @@ function array_field_search(a, f, v)
 
 Performs a linear search in table `a` for value `v`. `array_field_search` assumes that the elements of table `a` are themselves tables, and performs the search on field `f`.
 
-## String Operations
+## String operations
 
 ### in_list
 
@@ -2221,7 +2221,7 @@ function find_next_line(s, pos)
 Works with multiline text `s`. Lines are separated by EOL characters — `\n` or `\r\n`.
 Returns two values: the starting position of the current line and the starting position of the next line (or the end of the text `s` if no more lines remain).
 
-## Raw String Handling
+## Raw string handling
 
 ### hex
 
@@ -2272,7 +2272,7 @@ Packs elements of array `a` in ascending order of index from 1 to the last.
 For numeric arrays, [number packing functions](#bux) can be used as the `packer`.
 Returns a raw string.
 
-## TCP Sequence Number Handling
+## TCP sequence number handling
 
 ```
 function seq_ge(seq1, seq2)
@@ -2287,7 +2287,7 @@ function is_retransmission(desync)
 - `seq_within` checks if `seq_low <= seq <= seq_hi`.
 - `is_retransmission` checks if the current TCP dissection is a retransmission.
 
-## Position Handling
+## Position handling
 
 ```
 function pos_counter_overflow(desync, mode, reverse)
@@ -2793,7 +2793,7 @@ The following code example searches for the SNI extension within the `tdis` diss
 	table.insert(tdis.handshake[TLS_HANDSHAKE_TYPE_CLIENT].dis.ext[idx_sni].dis.list, { name = "example.com", type = 0 } )
 ```
 
-## Working with L3 and L4 Protocol Elements
+## Working with L3 and L4 protocol Elements
 
 ### find_tcp_options
 
@@ -2850,7 +2850,7 @@ Calculates the sizes of various dissect elements after reconstruction.
 - `l3l4_len` – Total length of IP/IPv6 and TCP headers, including all options and extension headers.
 - `packet_len` – Total length of the reconstructed packet, including the L4 payload.
 
-## Working with Hostnames
+## Working with hostnames
 
 ### genhost
 
@@ -2885,7 +2885,7 @@ function host_or_ip(desync)
 - `host_ip` returns a string representation of `desync.target.ip` or `desync.target.ip6`.
 - `host_or_ip` returns `desync.track.hostname` if both `track` and `track.hostname` exist; otherwise, it returns `host_ip(desync)`.
 
-## File Name and Path Operations
+## File name and path operations
 
 ```
 function is_absolute_path(path)
@@ -2897,7 +2897,7 @@ function writeable_file_name(filename)
 - `append_path` appends a file or directory name `file` to `path`, using '/' as a separator.
 - `writeable_file_name` returns `filename` if it contains an absolute path or if the `WRITEABLE` environment variable is not set. Otherwise, it retrieves the path from the `WRITEABLE` environment variable and appends the `filename` using `append_path`.
 
-## Reading and Writing Files
+## Reading and writing Files
 
 ```
 function readfile(filename)
@@ -2918,7 +2918,7 @@ function writefile(filename, data)
 
 Writes `data` to a file. Throws an error if opening the file fails.
 
-## Data Compression
+## Data compression
 
 ```
 function is_gzip_file(filename)
@@ -2960,7 +2960,7 @@ This heuristic is not always accurate due to these assumptions potentially being
 - `autottl` makes a heuristic guess about the hop length based on the TTL of incoming packets and calculates the TTL, taking into account the delta and the allowed range.
 The `incoming_ttl` can be retrieved from `desync`. `attl` uses the table format obtained via `parse_autottl`.
 
-## Operations with Dissects
+## Operations with dissects
 
 The following functions and transmission functions use standard option blocks, provided as fields in a separately passed table.
 The options table follows the `desync.arg` format. `desync.arg` can be passed directly without modification.
@@ -3271,9 +3271,9 @@ function replay_execution_plan(desync)
 
 Executes the entire [execution plan](#execution_plan) from `desync.plan`, respecting the [instance cutoff](#instance_cutoff) and standard [payload](#внутрипрофильные-фильтры) and [range](#внутрипрофильные-фильтры) filters.
 
-# zapret-antidpi.lua DPI Attack Program Library
+# zapret-antidpi.lua DPI attack program library
 
-## Standard Parameter Sets
+## Standard sarameter sets
 
 Many functions accept standard sets of arguments classified by their purpose.
 
@@ -3347,7 +3347,7 @@ function pktmod(ctx, desync)
 
 Applies modifications to the current dissect without sending it or issuing a verdict.
 
-## HTTP Fooling
+## HTTP fooling
 
 ### http_hostcase
 
@@ -3390,7 +3390,7 @@ function http_unixeol(ctx, desync)
 
 Replaces the `0D0A` line endings with `0A`. The difference in length is compensated for by adding spaces to the end of the `User-Agent` header. This only works with Nginx; it breaks other servers.
 
-## Window Size Modification
+## Window size replacement
 
 ### wsize
 
@@ -3523,7 +3523,7 @@ function rst(ctx, desync)
 
 Sends an empty TCP packet with RST or RST+ACK flags. The function does not issue a verdict and does not block the transmission of the original packet.
 
-## TCP Segmentation
+## TCP segmentation
 
 ### multisplit
 
@@ -3835,7 +3835,8 @@ This technique is intended for servers. In literature, it is known as "TCP split
 
 Many DPIs expect a standard response to a SYN in the form of a SYN,ACK. In reality, the response to the SYN becomes another SYN, and then the client sends a SYN,ACK to the server. Consequently, the DPI loses track of which side is the client and which is the server, causing the inspection algorithm to fail. The attack may work even if the client does nothing to bypass blocking. It can be used in conjunction with client-side techniques for targeted TCP bypassing.
 
-# zapret-auto.lua Automation and Orchestration Library
+
+# zapret-auto.lua automation and orchestration Library
 
 The standard order of instance application is linear—from left to right, taking into account [intra-profile filters](#внутрипрофильные-фильтры) and [instance cutoff](#instance_cutoff). nfqws2 provides no other options by default.
 
@@ -3847,7 +3848,7 @@ Orchestration is inextricably linked to the concept of an [execution plan](#exec
 
 For example, you can create automatic strategies—if one doesn't work, use another. The C code has similar logic only within the [automatic hostlist](#фильтрация-по-листам) mechanism, but it does not implement dynamic strategy switching.
 
-## State Storage
+## State storage
 
 Automation logic typically spans across packets and relies on conntrack. Flow states are stored using `desync.track.lua_state` elements.
 
@@ -3875,7 +3876,7 @@ A standard host-key generator. This function calculates a key string associated 
 ### automate_host_record
 
 ```
-function automate_conn_record(desync)
+function automate_host_record(desync)
 ```
 
 - arg: key — a key within the global `autostate` table. If not specified, the current instance name is used as the key.
@@ -3883,7 +3884,7 @@ function automate_conn_record(desync)
 
 Returns a table serving as automation state storage bound to a specific host or IP address. It utilizes two keys: `key` and `hostkey`. The resulting location is `autostate.key.hostkey`. If the `hostkey` cannot be retrieved, it returns `nil`.
 
-## Handling Successes and Failures
+## Handling successes and failures
 
 A simple, though not entirely precise, explanation of "success" and "failure" is "the site opens" versus "the site does not open." In automation logic, these states are abstract. Any process can result in a success or a failure. Detecting these states is necessary for tracking failures via a counter. The counter increments on failure and resets on success. When a target threshold is reached, a flag is returned, allowing external logic to perform an action—such as switching strategies.
 
@@ -3910,7 +3911,7 @@ function automate_failure_counter_reset(hrec)
 
 Resets the failure counter value.
 
-## Success and Failure Detection
+## Success and failure detection
 
 Success and failure detectors are swappable functions that take `desync` and [crec](#automate_conn_record) as parameters and return `true` if a success or failure is detected.
 
@@ -4046,7 +4047,7 @@ function condition(ctx, desync)
 
 `stopif` is useful as a nested orchestrator. For example, it can be used with `circular` to block strategy execution under certain conditions. `condition` is unsuitable for this purpose because it has no awareness of higher-level orchestrators or the "strategy" parameter, and would simply execute instances indiscriminately until the end. `stopif` clears the plan, thereby halting further execution of the parent orchestrator.
 
-### iff Functions
+### iff functions
 
 These are used across several orchestrators and take `desync` as a parameter.
 They can contain any logic programmable in Lua. The base set includes several `iff` functions for demonstration and testing purposes.
@@ -4088,7 +4089,8 @@ function cond_payload_str(desync)
 Returns `true` if the substring `pattern` is present in `desync.dis.payload`.
 This is a basic signature detector. If the C code does not recognize the protocol you need, you can write your own signature detector and run subsequent instances under a `condition` orchestrator using your detector as the `iff` function.
 
-# Helper Utilities
+
+# Auxiliary programs
 
 ## ip2net
 
@@ -4200,7 +4202,7 @@ You should also not expect highly complex strategy selection algorithms from blo
 
 blockcheck2 works on all supported platforms: Linux, FreeBSD, OpenBSD, and Windows. On Windows, the easiest way to use it is through the [win bundle](https://github.com/bol-van/zapret-win-bundle)—a minimal cygwin system pre-configured for zapret.
 
-## DNS Check
+## DNS check
 
 Nothing will work if the provider returns spoofed IP addresses for blocked domains, unless your client or OS supports routing requests through encrypted channels (e.g., DoH). Even if the browser works due to built-in DoH, there are other programs that lack such support. If the OS itself supports encrypted DNS, you can use that feature; if not, solving the DNS problem is up to you.
 
@@ -4227,21 +4229,21 @@ The list of external DNS servers, domains for spoofing tests, the selected DoH s
 
 The `SECURE_DNS` variable allows you to manually disable the switch to DoH or, conversely, force it even if no spoofing is detected.
 
-## Main Testing Modes
+## Main testing modes
 
-### Multiple Attempts
+### Multiple attempts
 
 Strategy instability is a common phenomenon. A provider might use load balancing, causing different requests to pass through different DPI systems. As a result, a strategy might work one moment and fail the next. Strategy stability is tested through multiple repetitions—attempts. The number of attempts is set either in the dialog or via [shell variables](#shell-variables).
 
 Parallel mode is [supported](#shell-variables). In this mode, each attempt is executed in a separate child process, and results are then aggregated from all processes. This mode is enabled only via the [PARALLEL variable](#shell-variables). It can significantly speed up testing but may also trigger a rate limit—a situation where the server restricts or bans you due to excessive hammering.
 
-### Scanning Levels
+### Scanning levels
 
 - **standard** — uses a test algorithm that excludes strategies deemed irrelevant based on previous successes or other criteria. In the case of multiple attempts, testing does not stop upon failure. The success rate and curl errors can also provide useful information for situational analysis.
 - **quick** — same as standard, but when using multiple attempts, testing stops after the first failure.
 - **force** — tests as extensively as possible, regardless of previous test results.
 
-### Supported Protocols
+### Supported protocols
 
 blockcheck2 tests strategies using curl. It supports checking http, https via TLS 1.2, https via TLS 1.3, and http3 (quic). Support for TLS 1.3 and quic may be missing in the curl version installed on your system. If so, you can download a static curl binary from [curl.se](https://curl.se), save it somewhere, grant it execution permissions, and specify the `CURL=<path>/curl` variable. Blockcheck will then use it instead of the system version. On OpenWRT devices with minimal disk space, you can use `/tmp`, which is a tmpfs stored in RAM.
 
@@ -4249,7 +4251,7 @@ TLS 1.2 is more difficult for DPI bypass than TLS 1.3 because the certificate is
 
 TLS 1.3 provides minimal unencrypted information during the TLS Server Hello. There is no domain information in plain text, and virtually no fingerprint, so DPI cannot block by domain by analyzing the server's response. However, it can still block the TLS protocol entirely if its rules prohibit TLS.
 
-### IP Block Check
+### IP block check
 
 zapret cannot bypass IP-based blocks.
 IP blocks come in various forms.
@@ -4274,7 +4276,7 @@ A hang is usually a sign of failure, but it could also result from server-side i
 
 There are many variables at play here, so observe the results carefully and use your judgment.
 
-#### Examples of domain-only blocking without an IP block
+#### Examples of domain-only blocking without IP blocking
 
 ```
 > testing iana.org on its original
@@ -4315,7 +4317,7 @@ curl: (35) OpenSSL/3.2.1: error:0A000410:SSL routines::ssl/tls alert handshake f
 curl: (35) OpenSSL/3.2.1: error:0A000410:SSL routines::ssl/tls alert handshake failure
 ```
 
-#### Example of a full IP block or TCP port block when domain blocking is absent
+#### Example of full IP block or TCP port block in the absence of domain blocking
 
 ```
 * port block tests ipv4 startmail.com:80
@@ -4342,7 +4344,7 @@ curl: (28) Connection timed out after 2002 milliseconds
 curl: (28) Connection timed out after 2002 milliseconds
 ```
 
-### Standard Tests
+### Standard tests
 
 #### The `standard` Test
 
@@ -4394,7 +4396,7 @@ NOTEST_FAKE_HOSTFAKE_HTTPS=1 - disable https 60-fake-hostfake.sh tests
 NOTEST_QUIC=1 - disable 90-quic.sh tests
 ```
 
-#### Custom Test
+#### Custom test
 
 A simple tester that uses strategy lists from files. Strategies must be on separate lines; line breaks within a single strategy are not allowed. Separate lists are used for different protocols: `list_http.txt`, `list_https_tls12.txt`, `list_https_tls13.txt`, and `list_quic.sh`. These files support comments starting with `#`.
 
@@ -4408,7 +4410,7 @@ The recommended way to use this is to copy it into its own subdirectory within `
 
 At the end of the test, all successful strategies are displayed for each domain and each IP protocol version. If more than one domain was tested, the intersection of successful strategies (those that worked for all) is also provided. However, this intersection can only be fully relied upon when using `SCANLEVEL=force`. Otherwise, strategies that might have worked for subsequent domains might not have been tested for the first one.
 
-## Shell Variables
+## Shell variables
 
 ```
 CURL - path to the curl executable
@@ -4446,7 +4448,7 @@ SIMULATE=1 - enable simulation mode for debugging script logic. Disables real cu
 SIM_SUCCESS_RATE=<percent> - simulation success probability as a percentage
 ```
 
-## Why It Won't Open
+## Why it won't open
 
 Blockcheck shows OK, but the site still won't open. Why?
 Blockcheck only verifies the availability of a single specific "domain[/uri]" using a specific protocol, and nothing more.
@@ -4468,7 +4470,7 @@ The main goal of those implementing the blocks is to eliminate mass circumventio
 If the button doesn't work for 99% of people, the solution doesn't work for them.
 In reality, technical research is required to see what they've come up with this time. It takes a lot of manual testing to identify their algorithms and find a workaround.
 
-# Startup Scripts
+# Startup scripts
 
 Startup scripts refer to the Linux wrapper that allows you to install, configure, remove, start, and stop the program. This also includes the maintenance system for IP and host lists. it supports OpenWrt and classic Linux distributions with `systemd` and `openrc`. For other Linux versions and firmwares, you can configure the parameters, but you will need to set up the autostart yourself.
 
@@ -4480,7 +4482,7 @@ On Windows, no dedicated startup system is required—everything is typically ha
 
 On BSD, only the ipset list retrieval system is functional. On FreeBSD, it can load ipsets (tables) into ipfw. On OpenBSD, pf loads the IP list files directly.
 
-## The config File
+## config File
 
 Used by all components of the startup scripts, this file is named "config" and is located in the root of the zapret directory. It is a shell include file where variables are assigned and comments starting with '#' are supported. You can also use any shell constructs, such as variable referencing or arithmetic operators.
 
@@ -4531,11 +4533,11 @@ nfqws2 itself is unaware of the startup scripts or the config file and does not 
 - Directly specifying parameters in `NFQWS2_OPT`, such as `--hostlist=/opt/zapret2/ipset/zapret-hosts-user.txt`, is strongly discouraged. This breaks the `MODE_FILTER` logic and the list retrieval scripts, meaning their results might not be taken into account.
 - Storing your own files in `/opt/zapret2` is risky, as the installer may delete them during a zapret2 update. Use a location outside the zapret2 directory.
 
-## List Management System
+## List management system
 
 Located in the `ipset` directory, this system consists of shell scripts that manage files with fixed names within the same directory.
 
-### Standard List Files
+### Standard list files
 
 Lists are categorized into hostlists and IP lists, and further divided into user-defined and auto-generated files.
 User-defined lists are maintained manually and are not modified by the software. Auto-generated lists are the result of program execution (such as downloaded lists) and are not intended for manual editing. Any changes to auto-generated lists may be overwritten.
@@ -4559,7 +4561,7 @@ The exclusion IP list is loaded into kernel sets and is always applied in table 
 | --                            | generated       | traffic redirection | zapret-ip-ipban.txt<br>zapret-ip-ipban6.txt           |
 | zapret-hosts.txt              | generated       | inclusion           | zapret-ip.txt<br>zapret-ip6.txt                       |
 
-### ipset Scripts
+### ipset scripts
 
 All scripts that generate hostlists call `get_ipban.sh`. All scripts that generate IP lists call `get_user.sh`. Essentially, ipban is always resolved regardless of whether you use hostlists or IP lists, while user lists are always resolved if you use any scripts to retrieve IP lists.
 
@@ -4630,7 +4632,7 @@ IP lists contain both IPv4 and IPv6 addresses.
 - `get_reestr_preresolved.sh` - Periodically resolves the list of blocked domains. This does not help with "jumping" domains that have frequently changing IPs or domains that resolve differently based on GeoIP.
 - `get_reestr_preresolved_smart.sh` - The previous list plus subnets of certain problematic ASNs, while excluding confirmed unblocked (whitelisted) ASNs. Problematic IPs include popular CDNs with rotating IPs and hosters subject to more stringent filtering rules in Russia. As of this writing, problematic ASNs include: AS32934 (Facebook, Instagram), AS13414 (Twitter), AS13335 (Cloudflare), AS15169 (Google), AS16509 (Amazon), AS16276 (OVH), AS24940 (Hetzner). Whitelisted ASNs: AS47541 (VK), AS35237 (Sberbank), AS47764 (Mail.ru), AS13238 (Yandex).
 
-### The ipban System
+### ipban system
 
 This is simply a system for resolving (and potentially downloading) a list, which results in the creation of kernel ipsets named "ipban" and "ipban6."
 `zapret` itself does not perform any actions with them. They are intended for you to manually configure PBR (Policy-Based Routing) or selective proxy redirection for connections targeting "ipban" addresses. As the name suggests, IP addresses in this list cannot be bypassed autonomously; a VPN or proxy is required. PBR or selective redirection is used to avoid routing all traffic through them. Configuration instructions are beyond the scope of this project, but some information can be found in the [zapret1 documentation](https://github.com/bol-van/zapret/tree/master/docs).
@@ -4649,7 +4651,7 @@ You cannot be certain which will start first—your script or `zapret`.
 Startup must be synchronized and should not run in parallel.
 The best way to achieve this is by using [INIT_FW_*_HOOK](#config-file).
 
-## Startup Scripts
+## Startup scripts
 
 These are available only for Linux and OpenWRT. The Linux version is located in `init.d/sysv`, and the OpenWRT version is in `init.d/openwrt`. The main executable is `zapret2`. The required action is passed via the `$1` argument. The startup procedure is split into starting the daemons (nfqws2 processes) and initializing the firewall (applying ip/nftables rules).
 
@@ -4664,7 +4666,7 @@ These are available only for Linux and OpenWRT. The Linux version is located in 
 
 The sysv variant is intended for any Linux distribution other than OpenWRT. On systems with different init systems, the sysv script is still used, while the integration with the native init system acts merely as an adapter to trigger it. For unsupported init systems or custom firmwares, you must determine where to hook "zapret2 start" and "zapret2 stop" yourself to ensure proper autostart and shutdown within your environment.
 
-### Firewall Integration
+### Firewall integration
 
 If the OS uses a firewall management system, conflicts may occur between it and zapret. Most commonly, these manifest as race conditions—a competition over who populates the rules first or clears the other's rules. This leads to chaos: sometimes it works, sometimes it doesn't, or only one component functions, making the overall state unpredictable. Race conditions usually happen with iptables because it uses shared tables. nftables generally avoids these issues since each application uses its own table. However, if the firewall management system decides to flush the entire ruleset, a race condition will still occur.
 
@@ -4672,7 +4674,7 @@ If you encounter race conditions or conflicts, the best solution is synchronizat
 
 If your firewall management system only works with its own rules and is highly incompatible with third-party additions, you might consider bypassing the startup scripts entirely. Instead, determine how to manually add `NFQUEUE` rules according to its specific logic and run the daemons separately via your distribution's init system. If this is undesirable or impossible, you may want to consider switching to a different firewall management system or abandoning it altogether.
 
-#### Integration with OpenWRT firewall
+#### OpenWRT firewall integration
 
 OpenWRT comes with ready-made firewall integration. The startup scripts automatically detect `fw3` and disable firewall management via `start/stop/restart`. Instead, a firewall include `firewall.zapret2` is added to `/etc/config/firewall`, which launches the `zapret` rules synchronously after `fw3` is initialized. Additionally, a `90-zapret2` hook is placed in `/etc/hotplug.d/iface` to handle interface up/down events. In the `fw3` version, `fw3` is restarted so that rules are applied to new interfaces or removed for those that no longer exist. In the `nftables` version, only the `wanif`, `wanif6`, `lanif`, and `flowtable` sets are reloaded.
 
@@ -4710,7 +4712,7 @@ Functions for obtaining dynamic numbers from the pool are necessary to prevent c
 
 These functions should be called from the main body of the script, not from within a function. Custom scripts are always executed in alphabetical order—this is the standard scheme for ".d" directories in Unix. Given the same set of scripts, the same `qnum` and `dnum` values will always be returned for each script during both startup and shutdown. This allows them to be used as unique identifiers without colliding with other scripts. If the composition of custom scripts is changed after startup, this rule is broken, which will lead to issues. Therefore, it is best not to modify the set of custom scripts while zapret2 is running.
 
-##### Working with Daemons
+##### Working with daemons
 
 ```
 do_nfqws()
@@ -4907,7 +4909,7 @@ nft_first_packets()
 
 Outputs to stdout: `ct original packets $RANGE`. `RANGE` is defined as "1-$1" if `$1 > 1`, or "1" if `$1 = 1`. If `$1` is "keepalive", nothing is output (no connbytes filter).
 
-##### Additional Functions
+##### Additional functions
 
 Many useful helpers are located in `common/base.sh`. Their purpose is easily understood from the code.
 
@@ -4930,7 +4932,7 @@ Binary files are only present in releases. They are missing after a `git clone`.
 
 The actions performed by the installer for integration with various Linux versions are described below. You can opt out of the installer by performing these steps manually and configuring the [config file](#config-file).
 
-### OpenWRT Integration Principles
+### OpenWRT Integration principles
 
 1. Autostart.
 
@@ -4957,7 +4959,7 @@ uci commit
 
 4. List updates — a cron job calling `/opt/zapret2/ipset/get_config.sh` at a random time during the night every 2 days to update lists. This assumes the router runs 24/7.
 
-### OpenWRT Cheat Sheet
+### OpenWRT cheat sheet
 
 - Start service: `/etc/init.d/zapret2 start`
 - Stop service: `/etc/init.d/zapret2 stop`
@@ -4966,7 +4968,7 @@ uci commit
 - Disable autostart: `/etc/init.d/zapret2 disable`
 - Enable autostart: `/etc/init.d/zapret2 enable`
 
-### systemd Integration Principles
+### systemd integration principles
 
 1. Autostart
 
@@ -4985,7 +4987,7 @@ systemctl enable zapret2-list-update.timer
 systemctl start zapret2-list-update.timer
 ```
 
-### systemd Cheat Sheet
+### systemd cheat sheet
 
 - Start service: `systemctl start zapret2`
 - Stop service: `systemctl stop zapret2`
@@ -4994,7 +4996,7 @@ systemctl start zapret2-list-update.timer
 - Disable autostart: `systemctl disable zapret2`
 - Enable autostart: `systemctl enable zapret2`
 
-### OpenRC Integration Principles
+### OpenRC integration principles
 
 1. Autostart
 
@@ -5005,7 +5007,7 @@ rc-update add zapret2
 
 2. List updates — a cron job to call `/opt/zapret2/ipset/get_config.sh` at a random time during the day every 2 days. This is designed for any system, including desktops that may only be powered on during the day.
 
-### OpenRC Cheat Sheet
+### OpenRC cheat sheet
 
 - Start service: `rc-service zapret2 start`
 - Stop service: `rc-service zapret2 stop`
@@ -5014,7 +5016,7 @@ rc-update add zapret2
 - Disable autostart: `rc-update del zapret2`
 - Enable autostart: `rc-update add zapret2`
 
-## Alternative Installation on systemd
+## Alternative installation on systemd
 
 On classic Linux distributions with systemd, you can use the provided template unit `init.d/systemd/nfqws2@.service` to run nfqws2 instances.
 

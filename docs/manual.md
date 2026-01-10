@@ -4048,7 +4048,7 @@ function standard_hostkey(desync)
 ### automate_host_record
 
 ```
-function automate_conn_record(desync)
+function automate_host_record(desync)
 ```
 
 - arg: key - ключ внутри глобальной таблицы autostate. если не задано, в качестве ключа используется имя текущего инстанса
