@@ -89,8 +89,7 @@
       - [execution\_plan\_cancel](#execution_plan_cancel)
 - [zapret-lib.lua base function library](#zapret-liblua-base-function-library)
   - [Base desync functions](#base-desync-functions)
-
-- [luaexec](#luaexec)
+    - [luaexec](#luaexec)
     - [pass](#pass)
     - [pktdebug](#pktdebug)
     - [argdebug](#argdebug)
@@ -2083,12 +2082,12 @@ function execution_plan_cancel(ctx)
 A one-time cancellation of all subsequent instances within a profile.
 The instance performing the cancellation takes over the coordination of further actions and is called the orchestrator.
 
-# zapret-lib.lua core function library
+# zapret-lib.lua base function library
 
 Nearly every function includes detailed comments regarding its purpose and parameters.
 Reviewing the Lua code and comments will provide a better understanding of what a specific function does and how to call it.
 
-## Core desync functions
+## Base desync functions
 
 These can be used directly in `--lua-desync`.
 
