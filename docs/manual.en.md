@@ -3474,7 +3474,7 @@ Order of operations:
 
 This function does not affect traffic by itself; it only prepares data for other functions.
 
-### fake_
+### fake
 
 ```
 function fake(ctx, desync)
@@ -3529,13 +3529,13 @@ function multisplit(ctx, desync)
 - arg: [standard rawsend](#standard-rawsend)
 - arg: pos - a comma-separated list of [markers](#markers) representing split points. Defaults to "2".
 - arg: seqovl - a number representing the offset relative to the current sequence to create an additional segment part that extends to the left beyond the TCP window boundary.
-- arg: seqovl_pattern - the [blob](#blob-transmission) used to fill the seqovl. Defaults to 0x00.
-- arg: blob - replace the current payload with the specified [blob](#blob-transmission).
+- arg: seqovl_pattern - the [blob](#passing-blobs) used to fill the seqovl. Defaults to 0x00.
+- arg: blob - replace the current payload with the specified [blob](#passing-blobs).
 - arg: optional - abort the operation if a blob is specified but missing. If seqovl_pattern is specified but missing, use the 0x00 pattern.
 - arg: nodrop - do not issue a VERDICT_DROP.
 - default payload filter - "known"
 
-Multisplit implements sequential segmentation of the current dissect or [reassembly](#multi-packet-payload-reception-features) with splits at positions defined by the [marker](#markers) list. It optionally supports replacing a data block with an arbitrary [blob](#blob-transmission) and the seqovl technique.
+Multisplit implements sequential segmentation of the current dissect or [reassembly](#multi-packet-payload-reception-features) with splits at positions defined by the [marker](#markers) list. It optionally supports replacing a data block with an arbitrary [blob](#passing-blobs) and the seqovl technique.
 A VERDICT_DROP is issued after all segments are successfully sent, unless "nodrop" is specified.
 
 If [replaying](#multi-packet-payload-reception-features) delayed packets and [reassembly](#multi-packet-payload-reception-features) is present, desync.reasm_data is used instead of desync.dis.payload. Splitting occurs only during the replay of the first part of the [reassembly](#multi-packet-payload-reception-features); for the remaining parts, a VERDICT_DROP is issued if the transmission was successful and "nodrop" is not specified. Since the entire [reassembly](#multi-packet-payload-reception-features) has already been sent in segments, there is no need to re-send its original parts.
@@ -3565,8 +3565,8 @@ function multidisorder(ctx, desync)
 - arg: [standard rawsend](#standard-rawsend)
 - arg: pos - a comma-separated list of [markers](#markers) - split points. Default is "2".
 - arg: seqovl - marker - an offset relative to the current sequence to create an additional part of the segment extending to the left.
-- arg: seqovl_pattern - the [blob](#blob-transmission) used to fill the seqovl. Default is 0x00.
-- arg: blob - replace the current payload with the specified [blob](#blob-transmission).
+- arg: seqovl_pattern - the [blob](#passing-blobs) used to fill the seqovl. Default is 0x00.
+- arg: blob - replace the current payload with the specified [blob](#passing-blobs).
 - arg: optional - skip the operation if a blob is specified but missing. If seqovl_pattern is specified but missing, use the 0x00 pattern.
 - arg: nodrop - disable issuing a VERDICT_DROP.
 - default payload filter - "known"
@@ -3597,7 +3597,7 @@ function multidisorder_legacy(ctx, desync)
 - arg: pos - a comma-separated list of [markers](#markers) - split points. Default is "2".
 - arg: seqovl - marker - an offset relative to the current sequence to create an additional part of the segment extending to the left.
 - arg: optional - skip the operation if a blob is specified but missing. If seqovl_pattern is specified but missing, use the 0x00 pattern.
-- arg: seqovl_pattern - the [blob](#blob-transmission) used to fill the seqovl. Default is 0x00.
+- arg: seqovl_pattern - the [blob](#passing-blobs) used to fill the seqovl. Default is 0x00.
 
 A multidisorder implementation fully compatible with nfqws1.
 
