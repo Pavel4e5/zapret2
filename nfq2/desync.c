@@ -1281,7 +1281,7 @@ static uint8_t dpi_desync_tcp_packet_play(
 		process_retrans_fail(ctrack, dis, (struct sockaddr*)&src, ifin);
 
 		// do not detect payload if reasm is in progress
-		if (!ctrack || ReasmIsEmpty(&ctrack->reasm_client))
+		if (!ctrack_replay || ReasmIsEmpty(&ctrack_replay->reasm_client))
 		{
 			t_protocol_probe testers[] = {
 				{L7P_TLS_CLIENT_HELLO,L7_TLS,IsTLSClientHelloPartial},
@@ -1313,7 +1313,7 @@ static uint8_t dpi_desync_tcp_packet_play(
 				goto pass;
 			}
 		}
-		else if (l7payload==L7P_TLS_CLIENT_HELLO || l7proto==L7_TLS && l7payload==L7P_UNKNOWN && ctrack && !ReasmIsEmpty(&ctrack->reasm_client))
+		else if (l7payload==L7P_TLS_CLIENT_HELLO || l7proto==L7_TLS && l7payload==L7P_UNKNOWN && ctrack_replay && !ReasmIsEmpty(&ctrack_replay->reasm_client))
 		{
 			l7payload = L7P_TLS_CLIENT_HELLO;
 
