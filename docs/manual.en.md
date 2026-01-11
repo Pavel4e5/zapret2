@@ -2256,10 +2256,12 @@ function blob_or_def(desync, name, def)
 ```
 function barray(a, packer)
 function btable(a, packer)
+function bitable(a, packer)
 ```
 
 - `barray` uses only numeric indices starting from 1. The order is preserved.
 - `btable` uses all indices but does not guarantee order.
+- `bitable` uses onlt numeric indices and guarantees order.
 
 Packs elements of array `a` in ascending order of index from 1 to the last.
 `packer` is a function that takes an element of `a` and returns a raw string.

@@ -330,6 +330,16 @@ function btable(a, packer)
 		return s
 	end
 end
+-- convert table a to packed string using 'packer' function. numeric indexes only, ordered
+function bitable(a, packer)
+	if a then
+		local s=""
+		for k,v in ipairs(a) do
+			s = s .. packer(v)
+		end
+		return s
+	end
+end
 
 -- sequence comparision functions. they work only within 2G interval
 -- seq1>=seq2
