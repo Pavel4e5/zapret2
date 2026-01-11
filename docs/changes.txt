@@ -175,3 +175,4 @@ v0.8.1
 * winws2: fix loopback large packets processing (up to 64K)
 * zapret-lib, zapret-antidpi: use numeric indexes in http dissects
 * nfqws2: move ctx from lightuserdata to userdata. prevents crashes on specific ARM cpus
+* nfqws2: alternative representation of payload filter in execution_plan item

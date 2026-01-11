@@ -932,24 +932,55 @@ static int luacall_execution_plan(lua_State *L)
 	lua_newtable(L);
 
 	struct func_list *func;
-	char instance[256], pls[2048];
+	char instance[256], plsl[2048];
 	struct packet_range *range;
 	unsigned int n=1;
+	t_l7payload pl;
+	const char *pls;
+
 	LIST_FOREACH(func, &ctx->dp->lua_desync, next)
 	{
 		if (n > ctx->func_n)
 		{
 			desync_instance(func->func, ctx->dp->n, n, instance, sizeof(instance));
 			range = ctx->incoming ? &func->range_in : &func->range_out;
+
 			lua_pushinteger(L, n - ctx->func_n);
-			lua_createtable(L, 0, 6);
+			lua_createtable(L, 0, 7);
+
 			lua_pushf_args(L,&func->args, -1, false);
 			lua_pushf_str(L,"func", func->func);
 			lua_pushf_int(L,"func_n", ctx->func_n);
 			lua_pushf_str(L,"func_instance", instance);
 			lua_pushf_range(L,"range", range);
-			if (l7_payload_str_list(func->payload_type, pls, sizeof(pls)))
-				lua_pushf_str(L,"payload_filter", pls);
+
+			lua_pushstring(L, "payload");
+			lua_newtable(L);
+			if (func->payload_type==L7P_ALL)
+			{
+				lua_pushliteral(L,"all");
+				lua_pushboolean(L,true);
+				lua_rawset(L,-3);
+			}
+			else
+			{
+				for (pl=0 ; pl<L7P_LAST ; pl++)
+				{
+					if (func->payload_type & (1<<pl))
+					{
+						if ((pls = l7payload_str(pl)))
+						{
+							lua_pushstring(L,pls);
+							lua_pushboolean(L,true);
+							lua_rawset(L,-3);
+						}
+					}
+				}
+			}
+			lua_rawset(L,-3);
+
+			if (l7_payload_str_list(func->payload_type, plsl, sizeof(plsl)))
+				lua_pushf_str(L,"payload_filter", plsl);
 			else
 				lua_pushf_nil(L,"payload_filter");
 

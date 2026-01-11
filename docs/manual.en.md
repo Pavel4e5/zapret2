@@ -2055,6 +2055,7 @@ Returns an array of information about all subsequent, pending instances in the c
 | func_n         | number | instance number within the profile                                                                                                        |
 | func_instance  | string | instance name (derived from the function name, instance number, and profile number)                                                       |
 | range          | table  | effective range of [counters](#in-profile-filters) `--in-range` or `--out-range` depending on the current direction                       |
+| payload        | table  | effective `--payload-filter` . payload name indexed table.                                                                                |
 | payload_filter | string | effective `--payload-filter`. A comma-separated list of payload names.                                                                    |
 
 **range**
