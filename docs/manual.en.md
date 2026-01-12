@@ -707,7 +707,7 @@ LOGICAL NETWORK FILTER:
 ## Protocol detection
 
 nfqws2 signatures the payload types of individual packets or groups of packets.
-All packets without data have payload empty, undetected - unknown.
+All packets without data have payload empty. Undetermined payloads have payload type "unknown".
 The flow protocol is assigned after receiving the first known payload and remains with the flow for the rest of its existence.
 In this case, subsequent payloads can have both a known type and an unknown one.
 In payload and flow protocol filters special values are available - "all" and "known". "all" means any, "known" - not "empty" and not "unknown".
@@ -1304,8 +1304,8 @@ desync
 | replay_piece | number | index of the part being replayed | 1-based indexing |
 | replay_piece_count | number | total number of parts being replayed | |
 | replay_piece_last | bool | indicates the last part being replayed | |
-| l7payload | string | payload type of the current packet or packet group; see nfqws2 help for the list | defaults to "unknown" if undetermined |
-| l7proto | string | stream protocol type | defaults to "unknown" if undetermined |
+| l7payload | string | [payload type](#protocol-detection) of the current packet or packet group | defaults to "unknown" if undetermined |
+| l7proto   | string | [flow protocol(#protocol-detection) | defaults to "unknown" if undetermined |
 
 | reasm_data         | string | result of reassembling a multi-packet message, or the payload itself if no reassembly occurred | currently applied only to TCP                             |
 | reasm_offset       | string | offset of the current replayed packet within the reassembled data                            | currently applied only to TCP                             |

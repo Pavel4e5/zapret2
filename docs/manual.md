@@ -776,11 +776,11 @@ nfqws2 сигнатурно распознает типы пейлоадов о�
 | tls             | tcp | tls_client_hello<br>tls_server_hello |
 | xmpp            | tcp | xmpp_stream<br>xmpp_starttls<br>xmpp_proceed<br>xmpp_features |
 | quic            | udp | quic_initial |
-| wireguarв       | udp | wireguard_initiation<br>wireguard_response<br>wireguard_cookie<br>wireguard_keepalive |
+| wireguard       | udp | wireguard_initiation<br>wireguard_response<br>wireguard_cookie<br>wireguard_keepalive |
 | dht             | udp | dht |
 | discord         | udp | discord_ip_discovery |
 | stun            | udp | stun |
-| dns             | udp | dns_query dns_response |
+| dns             | udp | dns_query<br>dns_response |
 | mtproto         | udp | mtproto_initial |
 | dtls            | udp | dtls_client_hello<br>dtls_server_hello |
 
@@ -1444,7 +1444,7 @@ desync
 | replay_piece_count | number | количество проигрываемых частей                                                              |                                                             |
 | replay_piece_last  | bool   | последняя проигрываемая часть                                                                |                                                             |
 | l7payload          | string | [тип пейлоада](#распознавание-протоколов) текущего пакета или группы пакетов                 | если неизвестно - unknown                                   |
-| l7proto            | string | тип протокола потока                                                                         | если неизвестно - unknown                                   |
+| l7proto            | string | тип [протокола потока](#распознавание-протоколов)                                            | если неизвестно - unknown                                   |
 | reasm_data         | string | результат сборки многопакетного сообщения, либо сам пейлоад, если сборки не было             | пока применяется только для tcp                             |
 | reasm_offset       | string | смещение текущего переигрываемого пакета в сборке                                            | пока применяется только для tcp                             |
 | decrypt_data       | string | результат сборки и дешифровки пейлоада или пейлоадов нескольких пакетов                      | применяется для quic                                        |
