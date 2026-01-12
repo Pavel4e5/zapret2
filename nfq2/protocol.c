@@ -1378,24 +1378,24 @@ bool IsDNSResponse(const uint8_t *data, size_t len)
 }
 bool IsWireguardHandshakeInitiation(const uint8_t *data, size_t len)
 {
-	return len==148 && data[0]==1;
+	return len==148 && pntoh32(data)==0x01000000;
 }
 bool IsWireguardHandshakeResponse(const uint8_t *data, size_t len)
 {
-	return len==92 && data[0]==2;
+	return len==92 && pntoh32(data)==0x02000000;
 }
 bool IsWireguardHandshakeCookie(const uint8_t *data, size_t len)
 {
-	return len==64 && data[0]==3;
+	return len==64 && pntoh32(data)==0x03000000;
 }
 bool IsWireguardData(const uint8_t *data, size_t len)
 {
 	// 16 bytes wg header + min 20 bytes for ipv4 encrypted header + 16 byte auth tag
-	return len>=52 && data[0]==4;
+	return len>=52 && pntoh32(data)==0x04000000;
 }
 bool IsWireguardKeepalive(const uint8_t *data, size_t len)
 {
-	return len==32 && data[0]==4;
+	return len==32 && pntoh32(data)==0x04000000;
 }
 bool IsDht(const uint8_t *data, size_t len)
 {
