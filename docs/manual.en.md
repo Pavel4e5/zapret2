@@ -719,13 +719,13 @@ Table of recognizable payload types and flow protocols
 | http            | tcp | http_req<br>http_reply |
 | tls             | tcp | tls_client_hello<br>tls_server_hello |
 | xmpp            | tcp | xmpp_stream<br>xmpp_starttls<br>xmpp_proceed<br>xmpp_features |
+| mtproto         | tcp | mtproto_initial |
 | quic            | udp | quic_initial |
 | wireguarв       | udp | wireguard_initiation<br>wireguard_response<br>wireguard_cookie<br>wireguard_keepalive |
 | dht             | udp | dht |
 | discord         | udp | discord_ip_discovery |
 | stun            | udp | stun |
 | dns             | udp | dns_query dns_response |
-| mtproto         | udp | mtproto_initial |
 | dtls            | udp | dtls_client_hello<br>dtls_server_hello |
 
 ## Using multiple profiles
