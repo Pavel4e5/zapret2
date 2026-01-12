@@ -721,7 +721,7 @@ Table of recognizable payload types and flow protocols
 | xmpp            | tcp | xmpp_stream<br>xmpp_starttls<br>xmpp_proceed<br>xmpp_features |
 | mtproto         | tcp | mtproto_initial |
 | quic            | udp | quic_initial |
-| wireguarв       | udp | wireguard_initiation<br>wireguard_response<br>wireguard_cookie<br>wireguard_keepalive |
+| wireguard       | udp | wireguard_initiation<br>wireguard_response<br>wireguard_cookie<br>wireguard_keepalive |
 | dht             | udp | dht |
 | discord         | udp | discord_ip_discovery |
 | stun            | udp | stun |
