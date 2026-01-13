@@ -5134,6 +5134,6 @@ There are several options :
 
 ## Windows Server
 
-winws is linked against wlanapi.dll which is absent by default.
+winws2 is linked against wlanapi.dll which is absent by default.
 To solve this problem run power shell as administrator and execute command `Install-WindowsFeature -Name Wireless-Networking`.
 Then reboot the system.
