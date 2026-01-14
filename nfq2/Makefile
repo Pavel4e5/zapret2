@@ -1,4 +1,5 @@
 CC ?= cc
+PKG_CONFIG ?= pkg-config
 OPTIMIZE ?= -Os
 CFLAGS += -std=gnu99 $(OPTIMIZE) -flto=auto
 CFLAGS_SYSTEMD = -DUSE_SYSTEMD
@@ -16,7 +17,6 @@ RES_CYGWIN32 = windows/res/32/winmanifest.o windows/res/32/winicon.o
 RES_CYGWIN64 = windows/res/64/winmanifest.o windows/res/64/winicon.o
 SRC_FILES = *.c crypto/*.c
 
-
 LUA_JIT?=1
 
 ifeq ($(LUA_JIT),1)
@@ -29,13 +29,13 @@ $(info trying luajit $(LUAJIT_VER) lua $(LUAJIT_LUA_VER))
 
 LUA_LIB_NAME=
 ifeq ($(LUA_CFLAGS),)
- LUA_CFLAGS := $(shell pkg-config --cflags $(LUA_PKG) 2>/dev/null)
+ LUA_CFLAGS := $(shell $(PKG_CONFIG) --cflags $(LUA_PKG) 2>/dev/null)
  ifeq ($(LUA_CFLAGS),)
   LUA_CFLAGS := -I/usr/local/include/luajit-$(LUAJIT_VER) -I/usr/include/luajit-$(LUAJIT_VER)
  endif
 endif
 ifeq ($(LUA_LIB),)
- LUA_LIB := $(shell pkg-config --libs $(LUA_PKG) 2>/dev/null)
+ LUA_LIB := $(shell $(PKG_CONFIG) --libs $(LUA_PKG) 2>/dev/null)
  LUA_LIB_DIR :=
 
  ifeq ($(LUA_LIB),)
@@ -87,13 +87,13 @@ else
 endif
 
 ifeq ($(LUA_CFLAGS),)
- LUA_CFLAGS := $(shell pkg-config --cflags $(LUA_PKG) 2>/dev/null)
+ LUA_CFLAGS := $(shell $(PKG_CONFIG) --cflags $(LUA_PKG) 2>/dev/null)
  ifeq ($(LUA_CFLAGS),)
   LUA_CFLAGS := -I/usr/local/include/lua$(LUA_VER) -I/usr/local/include/lua-$(LUA_VER) -I/usr/include/lua$(LUA_VER) -I/usr/include/lua-$(LUA_VER)
  endif
 endif
 ifeq ($(LUA_LIB),)
- LUA_LIB := $(shell pkg-config --libs $(LUA_PKG) 2>/dev/null)
+ LUA_LIB := $(shell $(PKG_CONFIG) --libs $(LUA_PKG) 2>/dev/null)
  LUA_LIB_DIR :=
  ifeq ($(LUA_LIB),)
   ifneq ($(wildcard /usr/local/lib/liblua-$(LUA_VER).*),)

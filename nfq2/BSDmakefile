@@ -1,4 +1,5 @@
 CC ?= cc
+PKG_CONFIG ?= pkg-config
 OPTIMIZE ?= -Os
 CFLAGS += -std=gnu99 -s $(OPTIMIZE) -flto=auto -Wno-address-of-packed-member
 LIBS = -lz -lm
@@ -26,8 +27,8 @@ OSNAME!=uname
 
 .endif
 
-LUA_LIB!= pkg-config --libs $(LUA_PKG)
-LUA_CFLAGS!= pkg-config --cflags $(LUA_PKG)
+LUA_LIB!= $(PKG_CONFIG) --libs $(LUA_PKG)
+LUA_CFLAGS!= $(PKG_CONFIG) --cflags $(LUA_PKG)
 
 .if "${LUA_JIT}" == "1"
 LUA_CFLAGS+=-DLUAJIT
