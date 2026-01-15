@@ -39,8 +39,6 @@
 #define LUA_STACK_GUARD_LEAVE(L,N) if ((_lsg+N)!=lua_gettop(L)) luaL_error(L,"stack guard failure");
 #define LUA_STACK_GUARD_RETURN(L,N) LUA_STACK_GUARD_LEAVE(L,N); return N;
 #define LUA_STACK_GUARD_UNWIND(L) lua_settop(L,_lsg);
-#define LUA_STACK_GUARD_UNWIND_RETURN(L,N) LUA_STACK_GUARD_UNWIND(L); return N;
-
 
 void desync_instance(const char *func, unsigned int dp_n, unsigned int func_n, char *instance, size_t inst_size);
 

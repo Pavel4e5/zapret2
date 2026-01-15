@@ -1664,7 +1664,7 @@ static bool lua_reconstruct_ip6exthdr(lua_State *L, int idx, struct ip6_hdr *ip6
 	LUA_STACK_GUARD_LEAVE(L, 0)
 	return true;
 err:
-	LUA_STACK_GUARD_UNWIND_RETURN(L, 0)
+	LUA_STACK_GUARD_UNWIND(L)
 	return false;
 }
 bool lua_reconstruct_ip6hdr(lua_State *L, int idx, struct ip6_hdr *ip6, size_t *len, uint8_t last_proto, bool preserve_next)
@@ -1910,7 +1910,7 @@ end:
 	LUA_STACK_GUARD_LEAVE(L, 0)
 	return true;
 err:
-	LUA_STACK_GUARD_UNWIND_RETURN(L, 0)
+	LUA_STACK_GUARD_UNWIND(L)
 	return false;
 }
 bool lua_reconstruct_tcphdr(lua_State *L, int idx, struct tcphdr *tcp, size_t *len)
@@ -2199,7 +2199,7 @@ bool lua_reconstruct_dissect(lua_State *L, int idx, uint8_t *buf, size_t *len, b
 	LUA_STACK_GUARD_LEAVE(L, 0)
 	return true;
 err:
-	LUA_STACK_GUARD_UNWIND_RETURN(L, 0)
+	LUA_STACK_GUARD_UNWIND(L)
 	return false;
 }
 static int luacall_reconstruct_dissect(lua_State *L)
