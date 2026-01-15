@@ -92,8 +92,6 @@ pktws_check_https_tls()
 	# $2 - domain
 	# $3 - PRE args for nfqws2
 
-	[ "$NOTEST_FAKE_MULTI_HTTPS" = 1 ] && { echo "SKIPPED"; return 0; }
-
 	local testf=$1 domain="$2" pre="$3"
 	local ok ok_any ttls attls f fake fooling splitf splitfs= split splits='2 1 sniext+1 sniext+4 host+1 midsld 1,midsld 1,midsld,1220 1,sniext+1,host+1,midsld-2,midsld,midsld+2,endhost-1'
 	local PAYLOAD="--payload=tls_client_hello"
@@ -148,6 +146,9 @@ pktws_check_https_tls12()
 {
 	# $1 - test function
 	# $2 - domain
+
+	[ "$NOTEST_FAKE_MULTI_HTTPS" = 1 ] && { echo "SKIPPED"; return 0; }
+
 	pktws_check_https_tls "$1" "$2" && [ "$SCANLEVEL" != force ] && return
 	pktws_check_https_tls "$1" "$2" --lua-desync=wssize:wsize=1:scale=6
 }
@@ -156,5 +157,8 @@ pktws_check_https_tls13()
 {
 	# $1 - test function
 	# $2 - domain
+
+	[ "$NOTEST_FAKE_MULTI_HTTPS" = 1 ] && { echo "SKIPPED"; return 0; }
+
 	pktws_check_https_tls "$1" "$2"
 }

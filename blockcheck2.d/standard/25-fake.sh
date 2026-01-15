@@ -86,8 +86,6 @@ pktws_check_https_tls()
 	# $2 - domain
 	# $3 - PRE args for nfqws2
 
-	[ "$NOTEST_FAKE_HTTPS" = 1 ] && { echo "SKIPPED"; return; }
-
 	local testf=$1 domain="$2" pre="$3"
 	local ok ok_any ttls attls f fake fooling
 	local PAYLOAD="--payload=tls_client_hello"
@@ -133,6 +131,9 @@ pktws_check_https_tls12()
 {
 	# $1 - test function
 	# $2 - domain
+
+	[ "$NOTEST_FAKE_HTTPS" = 1 ] && { echo "SKIPPED"; return; }
+
 	pktws_check_https_tls "$1" "$2" && [ "$SCANLEVEL" != force ] && return
 
 	# do not use 'need' values obtained with wssize
@@ -145,5 +146,8 @@ pktws_check_https_tls13()
 {
 	# $1 - test function
 	# $2 - domain
+
+	[ "$NOTEST_FAKE_HTTPS" = 1 ] && { echo "SKIPPED"; return; }
+
 	pktws_check_https_tls "$1" "$2"
 }

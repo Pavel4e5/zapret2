@@ -23,8 +23,6 @@ pktws_check_https_tls()
 
 	local PAYLOAD="--payload=tls_client_hello" ok=0 pre="$3" split
 
-	[ "$NOTEST_SYNDATA_HTTPS" = 1 ] && { echo "SKIPPED"; return; }
-
 	for split in '' multisplit $MULTIDISORDER; do
 		pktws_curl_test_update "$1" "$2" $pre --lua-desync=syndata ${split:+$PAYLOAD --lua-desync=$split} && ok=1
 		pktws_curl_test_update "$1" "$2" $pre --lua-desync=syndata:blob=0x1603 ${split:+$PAYLOAD --lua-desync=$split} && ok=1
@@ -40,6 +38,8 @@ pktws_check_https_tls12()
 	# $1 - test function
 	# $2 - domain
 
+	[ "$NOTEST_SYNDATA_HTTPS" = 1 ] && { echo "SKIPPED"; return; }
+
 	pktws_check_https_tls "$1" "$2" && [ "$SCANLEVEL" != force ] && return
 	pktws_check_https_tls "$1" "$2" --lua-desync=wssize:wsize=1:scale=6
 }
@@ -48,6 +48,8 @@ pktws_check_https_tls13()
 {
 	# $1 - test function
 	# $2 - domain
+
+	[ "$NOTEST_SYNDATA_HTTPS" = 1 ] && { echo "SKIPPED"; return; }
 
 	pktws_check_https_tls "$1" "$2"
 }

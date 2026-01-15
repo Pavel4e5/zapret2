@@ -83,8 +83,6 @@ pktws_check_https_tls()
 	# $2 - domain
 	# $3 - PRE args for nfqws2
 
-	[ "$NOTEST_FAKE_HOSTFAKE_HTTPS" = 1 ] && { echo "SKIPPED"; return 0; }
-
 	local PAYLOAD="--payload=tls_client_hello"
 	local FAKE="$FAKE_HTTPS"
 
@@ -101,6 +99,9 @@ pktws_check_https_tls12()
 {
 	# $1 - test function
 	# $2 - domain
+
+	[ "$NOTEST_FAKE_HOSTFAKE_HTTPS" = 1 ] && { echo "SKIPPED"; return 0; }
+
 	pktws_check_https_tls "$1" "$2" && [ "$SCANLEVEL" != force ] && return
 	pktws_check_https_tls "$1" "$2" --lua-desync=wssize:wsize=1:scale=6
 }
@@ -109,5 +110,8 @@ pktws_check_https_tls13()
 {
 	# $1 - test function
 	# $2 - domain
+
+	[ "$NOTEST_FAKE_HOSTFAKE_HTTPS" = 1 ] && { echo "SKIPPED"; return 0; }
+
 	pktws_check_https_tls "$1" "$2"
 }

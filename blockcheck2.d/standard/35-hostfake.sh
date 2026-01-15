@@ -77,14 +77,15 @@ pktws_check_https_tls()
 	# $2 - domain
 	# $3 - PRE args for nfqws2
 
-	[ "$NOTEST_HOSTFAKE_HTTPS" = 1 ] && { echo "SKIPPED"; return; }
-
 	pktws_check_hostfake $1 "$2" tls_client_hello "$3"
 }
 pktws_check_https_tls12()
 {
 	# $1 - test function
 	# $2 - domain
+
+	[ "$NOTEST_HOSTFAKE_HTTPS" = 1 ] && { echo "SKIPPED"; return; }
+
 	pktws_check_https_tls "$1" "$2" && [ "$SCANLEVEL" != force ] && return
 
 	# do not use 'need' values obtained with wssize
@@ -97,5 +98,8 @@ pktws_check_https_tls13()
 {
 	# $1 - test function
 	# $2 - domain
+
+	[ "$NOTEST_HOSTFAKE_HTTPS" = 1 ] && { echo "SKIPPED"; return; }
+
 	pktws_check_https_tls "$1" "$2"
 }
