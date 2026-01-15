@@ -185,3 +185,4 @@ v0.8.1
 * nfqws2: do not require / in the beginning of URI in http
 * zapret-lib: rawsend_dissect_segmented support URG
 * zapret-antidpi: oob
+* nfqws2: set desync.tcp_mss to minimum of both ends or default if at least one is unknown

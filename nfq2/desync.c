@@ -859,9 +859,11 @@ static uint8_t desync(
 			if (dis->tcp)
 			{
 				// recommended mss value for generated packets
-				if (rpos && rpos->mss)
-					lua_pushf_int(params.L, "tcp_mss", rpos->mss);
+				if (pos && pos->mss && rpos && rpos->mss)
+					// use minimum MSS of two ends or can fail with "message too long"
+					lua_pushf_int(params.L, "tcp_mss", rpos->mss > pos->mss ? pos->mss : rpos->mss);
 				else
+					// this value should always work
 					lua_pushf_global(params.L, "tcp_mss", "DEFAULT_MSS");
 			}
 			ref_arg = luaL_ref(params.L, LUA_REGISTRYINDEX);
