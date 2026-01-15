@@ -34,6 +34,7 @@ pktws_seqovl_tests_tls()
 	# $1 - test function
 	# $2 - domain/uri
 	# $3 - PRE args for nfqws2
+
 	local ok ok_any
 	local testf=$1 domain="$2" pre="$3"
 	local pat rnd_mod padencap_mod split f f2
@@ -67,21 +68,13 @@ pktws_seqovl_tests_tls()
 	[ "$ok_any" = 1 ]
 }
 
-pktws_check_https_tls()
-{
-	# $1 - test function
-	# $2 - domain
-	# $3 - PRE args for nfqws2
-
-	[ "$NOTEST_SEQOVL_HTTPS" = 1 ] && { echo "SKIPPED"; return; }
-
-	pktws_seqovl_tests_tls "$1" "$2" "$3"
-}
-
 pktws_check_https_tls12()
 {
 	# $1 - test function
 	# $2 - domain
+
+	[ "$NOTEST_SEQOVL_HTTPS" = 1 ] && { echo "SKIPPED"; return; }
+
 	pktws_seqovl_tests_tls "$1" "$2" && [ "$SCANLEVEL" != force ] && return
 	pktws_seqovl_tests_tls "$1" "$2" --lua-desync=wssize:wsize=1:scale=6
 }
@@ -90,5 +83,8 @@ pktws_check_https_tls13()
 {
 	# $1 - test function
 	# $2 - domain
+
+	[ "$NOTEST_SEQOVL_HTTPS" = 1 ] && { echo "SKIPPED"; return; }
+
 	pktws_seqovl_tests_tls "$1" "$2"
 }
