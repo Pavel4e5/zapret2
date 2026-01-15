@@ -310,6 +310,7 @@ function pos_str(desync, pos)
 	return pos.mode..pos_get(desync, pos.mode)
 end
 
+
 -- convert array a to packed string using 'packer' function. only numeric indexes starting from 1, order preserved
 function barray(a, packer)
 	if a then
@@ -1075,6 +1076,8 @@ function rawsend_dissect_segmented(desync, dis, mss, options)
 		local extra_len = l3l4_extra_len(discopy)
 		if extra_len >= mss then return false end
 		local max_data = mss - extra_len
+		local urp = dis.tcp.th_urp
+		local oob = bitand(dis.tcp.th_flags, TH_URG)~=0
 		if #discopy.payload > max_data then
 			local pos=1
 			local len
@@ -1083,6 +1086,15 @@ function rawsend_dissect_segmented(desync, dis, mss, options)
 			while pos <= #payload do
 				len = #payload - pos + 1
 				if len > max_data then len = max_data end
+				if oob then
+					if urp>=pos and urp<(pos+len)then
+						discopy.tcp.th_flags = bitor(dis.tcp.th_flags, TH_URG)
+						discopy.tcp.th_urp = urp-pos+1
+					else
+						discopy.tcp.th_flags = bitand(dis.tcp.th_flags, bitnot(TH_URG))
+						discopy.tcp.th_urp = 0
+					end
+				end
 				discopy.payload = string.sub(payload,pos,pos+len-1)
 				apply_ip_id(desync, discopy, options and options.ipid)
 				if not rawsend_dissect_ipfrag(discopy, options) then

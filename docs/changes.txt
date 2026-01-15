@@ -183,3 +183,5 @@ v0.8.1
 0.8.5
 
 * nfqws2: do not require / in the beginning of URI in http
+* zapret-lib: rawsend_dissect_segmented support URG
+* zapret-antidpi: oob

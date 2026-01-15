@@ -511,11 +511,10 @@ function multisplit(ctx, desync)
 	end
 end
 
--- internal function for code deduplication. do not call directly
+
 function pos_normalize(pos, low, hi)
 	return (pos>=low and pos<hi) and (pos-low+1) or nil
 end
--- internal function for code deduplication. do not call directly
 function pos_array_normalize(pos, low, hi)
 	-- remove positions outside of hi,low range. normalize others to low
 	local i=1
@@ -1052,6 +1051,94 @@ function tcpseg(ctx, desync)
 		else
 			DLOG("tcpseg: not acting on further replay pieces")
 		end
+	end
+end
+
+-- nfqws1 : not available
+-- tpws : close analog is "--split-pos=.. --oob" but works not the same way
+-- arg : char=c - oob char
+-- arg : byte=c - oob byte
+-- arg : drop_ack - drop original first ACK packet
+-- arg : urp - urgent pointer position marker, 'b' or 'e'. default - 0
+function oob(ctx, desync)
+	if not desync.track then return end
+	if not desync.dis.tcp then
+		instance_cutoff_shim(ctx, desync)
+		return
+	end
+	if desync.outgoing then
+		-- direct pos - outgoing
+		local pos = pos_get(desync, 's', false)
+		if pos<=1 then
+			local dseq = u32add(desync.dis.tcp.th_seq, -1)
+			DLOG("oob: decreasing outgoing seq : "..desync.dis.tcp.th_seq.." => "..dseq)
+			desync.dis.tcp.th_seq = dseq
+		end
+		if pos==0 then
+			return VERDICT_MODIFY
+		elseif pos==1 then
+			local data = desync.reasm_data or desync.dis.payload
+			if not desync.arg.drop_ack and #data==0  then
+				DLOG("oob: sending empty ACK")
+				if not rawsend_dissect(desync.dis) then	return end
+			end
+			if #data>0 then
+				local oob = desync.arg.char or (desync.arg.byte and bu8(desync.arg.byte) or nil) or "\x00"
+				local dis_oob = deepcopy(desync.dis)
+				local urp
+				if not desync.arg.urp or desync.arg.urp=='b' then
+					urp = 1
+					dis_oob.tcp.th_urp = 0
+				elseif desync.arg.urp=='e' then
+					urp = #data+1
+					dis_oob.tcp.th_urp = urp
+				else
+					urp = resolve_pos(data, desync.l7payload, desync.arg.urp)
+					DLOG("oob: resolved urp marker to "..urp-1)
+					if not urp then
+						DLOG("oob: cannot resolve urp marker '"..desync.arg.urp.."'")
+						instance_cutoff_shim(ctx, desync)
+						return
+					end
+					dis_oob.tcp.th_urp = urp
+				end
+				DLOG("oob: th_urp "..dis_oob.tcp.th_urp)
+				-- one byte OOB payload
+				dis_oob.payload = string.sub(data, 1, urp-1) .. oob .. string.sub(data, urp)
+				dis_oob.tcp.th_flags = bitor(dis_oob.tcp.th_flags, TH_URG)
+				DLOG("oob: sending OOB")
+				if not rawsend_dissect_segmented(desync, dis_oob, desync.tcp_mss, desync_opts(desync)) then
+					instance_cutoff_shim(ctx, desync)
+					return
+				end
+				if not desync.replay then
+					instance_cutoff_shim(ctx, desync)
+				end
+			end
+			return VERDICT_DROP
+		else
+			-- drop replay and cutoff
+			if desync.replay then
+				DLOG("oob: dropping replay piece")
+				if desync.replay_piece_last then
+					instance_cutoff_shim(ctx, desync)
+				end
+				return VERDICT_DROP
+			end
+			instance_cutoff_shim(ctx, desync)
+		end
+	else
+		-- reverse pos - outgoing
+		local pos = pos_get(desync, 's', true)
+		if pos>1 then
+			DLOG("oob: unexpected outgoing position "..pos)
+			instance_cutoff_shim(ctx, desync)
+			return
+		end
+		local dack = u32add(desync.dis.tcp.th_ack, 1)
+		DLOG("oob: increasing incoming ack : "..desync.dis.tcp.th_ack.." => "..dack)
+		desync.dis.tcp.th_ack = dack
+		return VERDICT_MODIFY
 	end
 end
 
