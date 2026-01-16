@@ -1078,11 +1078,14 @@ function oob(ctx, desync)
 			return VERDICT_MODIFY
 		elseif pos==1 then
 			local data = desync.reasm_data or desync.dis.payload
-			if not desync.arg.drop_ack and #data==0  then
-				DLOG("oob: sending empty ACK")
-				if not rawsend_dissect(desync.dis,rawsend_opts_base(desync)) then return end
-			end
-			if #data>0 then
+			if #data==0 then
+				if desync.arg.drop_ack then
+					DLOG("oob: dropping empty ACK")
+				else
+					DLOG("oob: sending empty ACK")
+					if not rawsend_dissect(desync.dis,rawsend_opts_base(desync)) then return end
+				end
+			else
 				local oob = desync.arg.char or (desync.arg.byte and bu8(desync.arg.byte) or nil) or "\x00"
 				local dis_oob = deepcopy(desync.dis)
 				local urp
