@@ -3830,6 +3830,7 @@ the newer one to the next byte. Therefore, the value th_urp=0 is invalid accordi
 To enable it, specify "urp=b".
 - "urp=e" inserts an OOB byte after the very last byte of the payload - generally useless for DPI bypass, since DPI gets the entire original message.
 - Requires redirection of incoming traffic within `--in-range=-s1`
+- In Windows, for protocols in which the server initially waits for a client request, `--wf-tcp-in` is not needed. Automatically intercepted incoming packets with the SYN flag are sufficient.
 - Cannot be filtered by payload because after the start it's not possible to stop and not to insert the byte. Inserting a byte without OOB breaks the data.
 - Hostlist filtering is only possible with `--ipcache-hostname`.
 - oob is "lasting" desync. If profile switch occurs before oob is finished it must be duplicated to that profile or TCP will break because of sequence desync.
