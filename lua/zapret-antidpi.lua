@@ -1059,7 +1059,6 @@ end
 -- standard args : fooling, ip_id, rawsend, reconstruct, ipfrag
 -- arg : char - oob char
 -- arg : byte - oob byte
--- arg : drop_ack - drop original first ACK packet
 -- arg : urp - urgent pointer position marker, 'b' or 'e'. default - 0
 function oob(ctx, desync)
 	if not desync.track then return end
@@ -1080,12 +1079,8 @@ function oob(ctx, desync)
 		elseif pos==1 then
 			local data = desync.reasm_data or desync.dis.payload
 			if #data==0 then
-				if desync.arg.drop_ack then
-					DLOG("oob: dropping empty ACK")
-				else
-					DLOG("oob: sending empty ACK")
-					if not rawsend_dissect(desync.dis,rawsend_opts_base(desync)) then return end
-				end
+				-- empty ACK
+				return VERDICT_MODIFY
 			else
 				local oob = desync.arg.char or (desync.arg.byte and bu8(desync.arg.byte) or nil) or "\x00"
 				if #oob~=1 then
