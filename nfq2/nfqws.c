@@ -1441,6 +1441,7 @@ static void exithelp(void)
 		" --wf-filter-lan=0|1\t\t\t\t\t; add excluding filter for non-global IP (default : 1)\n"
 		" --wf-filter-loopback=0|1\t\t\t\t; add excluding filter for loopback (default : 1)\n"
 		" --wf-raw=<filter>|@<filename>\t\t\t\t; full raw windivert filter string or filename. replaces --wf-tcp,--wf-udp,--wf-raw-part\n"
+		" --wf-dup-check=0|1\t\t\t\t\t; 1 (default) = do not allow duplicate winws2 instances with the same wf filter\n"
 		" --wf-save=<filename>\t\t\t\t\t; save windivert filter string to a file and exit\n"
 		"\nLOGICAL NETWORK FILTER:\n"
 		" --ssid-filter=ssid1[,ssid2,ssid3,...]\t\t\t; enable winws2 only if any of specified wifi SSIDs connected\n"
@@ -1635,6 +1636,7 @@ enum opt_indices {
 	IDX_WF_RAW_PART,
 	IDX_WF_FILTER_LAN,
 	IDX_WF_FILTER_LOOPBACK,
+	IDX_WF_DUP_CHECK,
 	IDX_WF_SAVE,
 	IDX_SSID_FILTER,
 	IDX_NLM_FILTER,
@@ -1727,6 +1729,7 @@ static const struct option long_options[] = {
 	[IDX_WF_FILTER_LAN] = {"wf-filter-lan", required_argument, 0, 0},
 	[IDX_WF_FILTER_LOOPBACK] = {"wf-filter-loopback", required_argument, 0, 0},
 	[IDX_WF_SAVE] = {"wf-save", required_argument, 0, 0},
+	[IDX_WF_DUP_CHECK] = {"wf-dup-check", optional_argument, 0, 0},
 	[IDX_SSID_FILTER] = {"ssid-filter", required_argument, 0, 0},
 	[IDX_NLM_FILTER] = {"nlm-filter", required_argument, 0, 0},
 	[IDX_NLM_LIST] = {"nlm-list", optional_argument, 0, 0},
@@ -1762,7 +1765,7 @@ int main(int argc, char **argv)
 #endif
 	int result, v;
 	int option_index = 0;
-	bool bSkip = false, bDry = false, bTemplate;
+	bool bSkip = false, bDry = false, bDupCheck = true, bTemplate;
 	struct hostlist_file *anon_hl = NULL, *anon_hl_exclude = NULL;
 	struct ipset_file *anon_ips = NULL, *anon_ips_exclude = NULL;
 	uint64_t payload_type=0;
@@ -2498,6 +2501,9 @@ int main(int argc, char **argv)
 			strncpy(wf_save_file, optarg, sizeof(wf_save_file));
 			wf_save_file[sizeof(wf_save_file) - 1] = '\0';
 			break;
+		case IDX_WF_DUP_CHECK:
+			bDupCheck = !optarg || !!atoi(optarg);
+			break;
 		case IDX_SSID_FILTER:
 			hash_ssid_filter = hash_jen(optarg, strlen(optarg));
 			if (!parse_strlist(optarg, &params.ssid_filter))
@@ -2693,7 +2699,8 @@ int main(int argc, char **argv)
 			exit_clean(1);
 		}
 	}
-	HANDLE hMutexArg;
+	HANDLE hMutexArg = NULL;
+	if (bDupCheck)
 	{
 		char mutex_name[128];
 		snprintf(mutex_name, sizeof(mutex_name), "Global\\winws2_arg_%u_%u_%u_%u_%u_%u_%u_%u_%u_%u_%u_%u",

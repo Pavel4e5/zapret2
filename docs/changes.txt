@@ -189,4 +189,7 @@ v0.8.1
 * nfqws2: set desync.tcp_mss to minimum of both ends or default if at least one is unknown
 * zapret-lib: tcp_nop_del
 * blockcheck2: tcp_nop_del in SYN packets with md5 in openbsd
-* nfqws2: detect http proxy protocol as http
+
+0.8.6
+
+* winws2, blockcheck2: allow multiple instances in windows, linux, freebsd (not openbsd)
