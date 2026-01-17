@@ -21,7 +21,7 @@ pktws_hostfake_vary()
 	pktws_hostfake_vary_ "$1" "$2" "$3" "$4" "$5" && ok_any=1
 	# duplicate SYN with MD5
 	contains "$fooling" tcp_md5 && \
-		pktws_hostfake_vary_  "$1" "$2" "$3" "$4" "${5:+$5 }--payload=empty --out-range=<s1 --lua-desync=send:tcp_md5" && ok_any=1
+		pktws_hostfake_vary_  "$1" "$2" "$3" "$4" "${5:+$5 }--payload=empty --out-range=<s1 --lua-desync=send:$TCP_MD5" && ok_any=1
 	[ "$ok_any" = 1 ]
 }
 

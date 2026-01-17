@@ -15,3 +15,7 @@ MAX_AUTOTTL_DELTA=${MAX_AUTOTTL_DELTA:-5}
 
 # can use MULTIDISORER=multidisorder_legacy
 MULTIDISORDER=${MULTIDISORDER:-multidisorder}
+
+TCP_MD5=tcp_md5
+# OpenBSD can occupy 24 bytes in tcp options in SYN packet leaving no space for the md5 header
+[ "$UNAME" = OpenBSD ] && TCP_MD5=$TCP_MD5:tcp_nop_del
