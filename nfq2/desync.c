@@ -1280,17 +1280,17 @@ static uint8_t dpi_desync_tcp_packet_play(
 				{L7P_XMPP_STREAM,L7_XMPP,IsXMPPStream,false},
 				{L7P_XMPP_STARTTLS,L7_XMPP,IsXMPPStartTLS,false}
 			};
-			protocol_probe(testers, sizeof(testers) / sizeof(*testers), dis->data_payload, dis->len_payload, ctrack, &l7proto, &l7payload);
+			protocol_probe(testers, sizeof(testers) / sizeof(*testers), rdata_payload, rlen_payload, ctrack_replay, &l7proto, &l7payload);
 
 			if (l7payload==L7P_UNKNOWN)
 			{
 				// this is special type. detection requires AES and can be successful only for the first data packet. no reason to AES every packet
-				if (ctrack && (ctrack->pos.client.seq_last - ctrack->pos.client.seq0)==1)
+				if (ctrack_replay && (ctrack->pos.client.seq_last - ctrack->pos.client.seq0)==1)
 				{
 					t_protocol_probe testers[] = {
 						{L7P_MTPROTO_INITIAL,L7_MTPROTO,IsMTProto}
 					};
-					protocol_probe(testers, sizeof(testers) / sizeof(*testers), dis->data_payload, dis->len_payload, ctrack, &l7proto, &l7payload);
+					protocol_probe(testers, sizeof(testers) / sizeof(*testers), rdata_payload, rlen_payload, ctrack_replay, &l7proto, &l7payload);
 				}
 			}
 		}
