@@ -341,7 +341,7 @@ function circular(ctx, desync)
 	orchestrate(ctx, desync)
 
 	if not desync.track then
-		DLOG_ERR("circular: conntrack is missing but required")
+		DLOG("circular: conntrack is missing but required")
 		return
 	end
 
