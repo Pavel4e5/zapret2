@@ -113,10 +113,18 @@ static bool LoadHostList(struct hostlist_file *hfile)
 		{
 			// stat() error
 			DLOG_PERROR("file_mod_signature");
-			DLOG_ERR("cannot access hostlist file '%s'. in-memory content remains unchanged.\n",hfile->filename);
-			return true;
+			goto unchanged;
 		}
 		if (FILE_MOD_COMPARE(&hfile->mod_sig,&fsig)) return true; // up to date
+		// check if it's readable. do not destroy in-memory copy if not
+		if (!file_open_test(hfile->filename, O_RDONLY))
+		{
+			DLOG_PERROR("file_open_test");
+			goto unchanged;
+		}
+		// don't want to keep backup copy in memory - it will require *2 RAM. Problem on low-ram devices. It's better to fail hostlist read than have OOM.
+		// if a file can be opened there're few chances it can't be read. fs corruption, disk error, deleted or made inaccessible between 2 syscals ?
+		// it's all hypotetically possible but very unlikely. but OOM is much more real problem on an embedded device if list is large enough
 		HostlistPoolDestroy(&hfile->hostlist);
 		if (!AppendHostList(&hfile->hostlist, hfile->filename))
 		{
@@ -125,6 +133,9 @@ static bool LoadHostList(struct hostlist_file *hfile)
 		}
 		hfile->mod_sig=fsig;
 	}
+	return true;
+unchanged:
+	DLOG_ERR("cannot access hostlist file '%s'. in-memory content remains unchanged.\n",hfile->filename);
 	return true;
 }
 static bool LoadHostLists(struct hostlist_files_head *list)

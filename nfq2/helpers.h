@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <time.h>
+#include <fcntl.h>
 
 #define UNARY_PLUS(v) (v>0 ? "+" : "")
 

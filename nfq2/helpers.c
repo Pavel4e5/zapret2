@@ -8,7 +8,6 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <libgen.h>
-#include <fcntl.h>
 
 #define UNIQ_SORT \
 { \
