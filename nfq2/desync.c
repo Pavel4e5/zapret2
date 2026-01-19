@@ -1915,12 +1915,6 @@ static uint8_t dpi_desync_udp_packet_play(
 				DLOG("desync profile changed by revealed l7 protocol or hostname !\n");
 			}
 		}
-		else if (ctrack_replay)
-		{
-			bCheckDone = ctrack_replay->bCheckDone;
-			bCheckResult = ctrack_replay->bCheckResult;
-			bCheckExcluded = ctrack_replay->bCheckExcluded;
-		}
 
 		if (bHaveHost && !PROFILE_HOSTLISTS_EMPTY(dp))
 		{
