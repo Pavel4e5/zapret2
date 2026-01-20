@@ -1823,6 +1823,7 @@ function gunzip_inflate(zstream, compressed_data, expected_uncompressed_chunk_si
 
 * `gunzip_init` creates and returns a gzip stream context for subsequent function calls. See the zlib documentation for `windowBits` values (default is 47).
 * `gunzip_end` releases the gzip context. While it can be handled by the garbage collector, it is better to call it explicitly.
+* instead of calling `gunzip_end` in Lua 5.5+ it's possible to use to-be-close variable for the context
 * `gunzip_inflate` decompresses the next part of the gzipped data. Data can be fed into the function in chunks. Decompressed parts are concatenated to obtain the full data. Returns 2 arguments: the decompressed data and a boolean flag indicating the end of the gzip stream. Returns `nil` in case of corrupted data or memory allocation failure.
 * `expected_uncompressed_chunk_size` - an optional parameter to optimize memory allocation for decompressed data. If the buffer is insufficient, `realloc` is called, which copies memory blocks and impacts performance. The size should be chosen based on the expected compression ratio with a small margin. The default is four times the size of `compressed_data`.
 
@@ -1836,6 +1837,7 @@ function gzip_deflate(zstream, uncompressed_data, expected_compressed_chunk_size
 
 * `gzip_init` creates and returns a gzip stream context for subsequent function calls. For `windowBits` values, refer to the zlib documentation (default is 31). `level` specifies the compression level from 1 to 9 (default is 9), and `memlevel` defines the allowed memory usage level from 1 to 8 (default is 8).
 * `gzip_end` releases the gzip context. While it can be released by the garbage collector, it is better to call this function explicitly.
+* instead of calling `gzip_end` in Lua 5.5+ it's possible to use to-be-close variable for the context
 * `gzip_deflate` compresses the next chunk of data. Data can be fed in parts. The compressed chunks are concatenated to form the complete data set. To finalize the stream after all data has been fed, the function must be called with `uncompressed_data=nil` or `uncompressed_data=""`. It returns two arguments: the compressed data and a boolean flag indicating the end of the gzip stream. If a gzip error occurs or memory is insufficient, it returns `nil`.
 * `expected_compressed_chunk_size` is an optional parameter used to optimize memory allocation for compressed data. If the buffer is insufficient, `realloc` is called, which copies memory blocks and impacts performance. The size should be chosen based on the expected compression ratio with a small margin. The default is half the size of `uncompressed_data`.
 
