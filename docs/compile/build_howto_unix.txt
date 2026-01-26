@@ -14,4 +14,4 @@ make -C /opt/zapret2
 OpenBSD :
 
 pkg_add luajit gmake bsd
-gmake -C /opt/zapret2
+gmake -C /opt/zapret2 bsd
