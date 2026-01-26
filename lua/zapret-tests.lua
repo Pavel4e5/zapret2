@@ -119,7 +119,7 @@ function test_aes()
 		print()
 		print("* aes test key_size "..tostring(key_size))
 
-		print("clear text: "..clear_text);
+		print("clear text: "..clear_text)
 
 		print("* encrypting")
 		encrypted = aes(true, key, clear_text)
@@ -158,8 +158,8 @@ function test_aes_gcm()
 		print()
 		print("* aes_gcm test key_size "..tostring(key_size))
 
-		print("clear text: "..clear_text);
-		print("authenticated data: "..authenticated_data);
+		print("clear text: "..clear_text)
+		print("authenticated data: "..authenticated_data)
 
 		print("* encrypting")
 		encrypted, atag = aes_gcm(true, key, iv, clear_text, authenticated_data)
@@ -224,7 +224,7 @@ function test_aes_ctr()
 		print()
 		print("* aes_ctr test key_size "..tostring(key_size))
 
-		print("clear text: "..clear_text);
+		print("clear text: "..clear_text)
 
 		print("* encrypting")
 		encrypted = aes_ctr(key, iv, clear_text)
@@ -425,7 +425,7 @@ end
 function test_ipstr()
 	local s_ip, ip, s_ip2
 
-	s_ip = string.format("%u.%u.%u.%u", math.random(0,255), math.random(0,255), math.random(0,255), math.random(0,255));
+	s_ip = string.format("%u.%u.%u.%u", math.random(0,255), math.random(0,255), math.random(0,255), math.random(0,255))
 	ip = pton(s_ip)
 	s_ip2 = ntop(ip)
 	print("IP: "..s_ip)
@@ -433,7 +433,7 @@ function test_ipstr()
 	print("IP2: "..s_ip2)
 	test_assert(s_ip==s_ip2)
 
-	s_ip = string.format("%x:%x:%x:%x:%x:%x:%x:%x", math.random(1,0xFFFF), math.random(1,0xFFFF), math.random(1,0xFFFF), math.random(1,0xFFFF), math.random(1,0xFFFF), math.random(1,0xFFFF), math.random(1,0xFFFF), math.random(1,0xFFFF));
+	s_ip = string.format("%x:%x:%x:%x:%x:%x:%x:%x", math.random(1,0xFFFF), math.random(1,0xFFFF), math.random(1,0xFFFF), math.random(1,0xFFFF), math.random(1,0xFFFF), math.random(1,0xFFFF), math.random(1,0xFFFF), math.random(1,0xFFFF))
 	ip = pton(s_ip)
 	s_ip2 = ntop(ip)
 	print("IP: "..s_ip)
@@ -568,7 +568,7 @@ function test_dissect()
 		test_assert(raw1==raw2)
 
 		print("IP6 standalone")
-		ip6_udp.ip6.ip6_plen = nil;
+		ip6_udp.ip6.ip6_plen = nil
 		raw1 = reconstruct_ip6hdr(ip6_udp.ip6,{ip6_last_proto=IPPROTO_UDP})
 		print("IP1: "..string2hex(raw1))
 		dis1 = dissect_ip6hdr(raw1)
@@ -576,6 +576,13 @@ function test_dissect()
 		print("IP2: "..string2hex(raw2))
 		print( raw1==raw2 and "DISSECT OK" or "DISSECT FAILED" )
 		test_assert(raw1==raw2)
+
+		raw1 = string.sub(reconstruct_dissect(ip6_udp),1,-4-#ip6_udp.payload)
+		dis1 = dissect(raw1, false)
+		dis2 = dissect(raw1, true)
+		local ok = not dis1.ip6 and dis2.ip6
+		print("IP6 partial : "..(ok and "OK" or "FAIL"))
+		test_assert(ok)
 	end
 end
 
@@ -901,7 +908,7 @@ function test_rawsend(opts)
 	test_assert(rawsend_dissect_print(dis, {repeats=3}))
 
 	ip2 = deepcopy(ip6)
-	ip2.ip6_plen = UDP_BASE_LEN + #payload;
+	ip2.ip6_plen = UDP_BASE_LEN + #payload
 	raw_ip = reconstruct_ip6hdr(ip2, {ip6_last_proto = IPPROTO_UDP})
 	raw_udp = reconstruct_udphdr({uh_sport = udp.uh_sport, uh_dport = udp.uh_dport, uh_ulen = UDP_BASE_LEN + #payload})
 	raw_udp = csum_udp_fix(raw_ip,raw_udp,payload)
@@ -927,7 +934,7 @@ function test_rawsend(opts)
 
 	insert_ip6_exthdr(ip6, nil, IPPROTO_DSTOPTS, "\x00\x00\x00\x00\x00\x00")
 	insert_ip6_exthdr(ip6, nil, IPPROTO_DSTOPTS, "\x00\x00\x00\x00\x00\x00")
-	ip6.ip6_flow = 0x60001234;
+	ip6.ip6_flow = 0x60001234
 	ddis = ipfrag2(dis, {ipfrag_pos_udp = 80})
 	for k,d in ipairs(ddis) do
 		print("send ipv6 udp frag "..k.." with hopbyhop, destopt ext headers in unfragmentable part and another destopt ext header in fragmentable part")
@@ -935,7 +942,7 @@ function test_rawsend(opts)
 	end
 
 	fix_ip_proto(dis) -- ip6_preserve_next requires next fields in ip6.exthdr
-	ip6.ip6_flow = 0x6000AE38;
+	ip6.ip6_flow = 0x6000AE38
 	ddis = ipfrag2(dis, {ipfrag_pos_udp = 72, ipfrag_next = IPPROTO_TCP})
 	for k,d in ipairs(ddis) do
 		print("send ipv6 udp frag "..k.." with hopbyhop, destopt ext headers in unfragmentable part and another destopt ext header in fragmentable part. forge next proto in fragment header of the second fragment to TCP")
@@ -955,8 +962,8 @@ function test_rawsend(opts)
 	test_assert(rawsend_dissect_print(dis, {fwmark = 0xD133, repeats=3}))
 
 	ip6.exthdr={{ type = IPPROTO_HOPOPTS, data = "\x00\x00\x00\x00\x00\x00" }}
-	ip6.ip6_flow=0x60009E3B;
-	icmp.icmp_type = ICMP6_ECHO_REQUEST;
+	ip6.ip6_flow=0x60009E3B
+	icmp.icmp_type = ICMP6_ECHO_REQUEST
 	dis = {ip6 = ip6, icmp = icmp, payload = payload}
 	print("send ipv6 icmp")
 	test_assert(rawsend_dissect_print(dis, {fwmark = 0x8E10, repeats=3}))

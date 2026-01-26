@@ -2571,15 +2571,17 @@ static int luacall_reconstruct_dissect(lua_State *L)
 static int luacall_dissect(lua_State *L)
 {
 	// dissect(packet_data)
-	lua_check_argc(L,"dissect",1);
+	lua_check_argc_range(L,"dissect",1,2);
 
 	LUA_STACK_GUARD_ENTER(L)
 
 	size_t len;
 	const uint8_t *data = (const uint8_t*)lua_reqlstring(L, 1, &len);
+	int argc = lua_gettop(L);
+	bool no_payload_check = argc>=2 ? lua_toboolean(L, 2) : false;
 
 	struct dissect dis;
-	proto_dissect_l3l4(data, len, &dis, false);
+	proto_dissect_l3l4(data, len, &dis, no_payload_check);
 
 	lua_push_dissect(L, &dis);
 
