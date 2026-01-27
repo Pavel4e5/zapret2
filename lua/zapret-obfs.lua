@@ -95,14 +95,14 @@ end
 -- xor ip protocol number and optionally xor tcp,udp,icmp payload with supplied blob pattern
 -- arg : ippxor - value to xor ip protocol number
 -- arg : dataxor - blob to xor tcp, udp or icmp payload
+-- arg : rebuild - reconstruct desync.dis if after ippxor packet becomes tcp,udp or icmp
 function ippxor(ctx, desync)
 	local dataxor
+	local function need_dxor(dis)
+		return dataxor and dis.payload and #dis.payload>0 and (dis.tcp or dis.udp or dis.icmp)
+	end
 	local function dxor(dis)
-		if dataxor and dis.payload and #dis.payload>0 and (dis.tcp or dis.udp or dis.icmp) then
-			dis.payload = bxor(dis.payload, pattern(dataxor,1,#dis.payload))
-			return true
-		end
-		return false
+		dis.payload = bxor(dis.payload, pattern(dataxor,1,#dis.payload))
 	end
 
 	if not desync.arg.ippxor then
@@ -119,12 +119,10 @@ function ippxor(ctx, desync)
 		end
 	end
 
-	local bdxor
-	if dataxor then
-		bdxor = dxor(desync.dis)
-		if bdxor then
-			DLOG("ippxor: dataxor out")
-		end
+	local bdxor = need_dxor(desync.dis)
+	if bdxor then
+		DLOG("ippxor: dataxor out")
+		dxor(desync.dis)
 	end
 
 	local l3_from = ip_proto_l3(desync.dis)
@@ -132,18 +130,22 @@ function ippxor(ctx, desync)
 	fix_ip_proto(desync.dis, l3_to)
 	DLOG("ippxor: "..l3_from.." => "..l3_to)
 
-	if dataxor then
+	if	(not bdxor and dataxor or desync.arg.rebuild) and
+		(l3_to==IPPROTO_TCP and not desync.dis.tcp or
+		l3_to==IPPROTO_UDP and not desync.dis.udp or
+		l3_to==IPPROTO_ICMP and not (desync.dis.ip and desync.dis.icmp) or
+		l3_to==IPPROTO_ICMPV6 and not (desync.dis.ip6 and desync.dis.icmp))
+	then
+		DLOG("ippxor: packet rebuild")
 		local raw_ip = reconstruct_dissect(desync.dis, {ip6_preserve_next=true})
 		local dis = dissect(raw_ip)
 		if not dis.ip and not dis.ip6 then
 			DLOG_ERR("ippxor: could not rebuild packet")
 			return
 		end
-
-		if not bdxor then
-			if dxor(dis) then
-				DLOG("ippxor: dataxor in")
-			end
+		if not bdxor and need_dxor(dis) then
+			DLOG("ippxor: dataxor in")
+			dxor(dis)
 		end
 		desync.dis = dis
 	end
