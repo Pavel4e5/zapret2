@@ -1,8 +1,7 @@
-# This manual is mostly AI translated from russian
+<H1>This manual is mostly AI translated from russian</H1>
 
 # Contents
 
-- [This manual is mostly AI translated from russian](#this-manual-is-mostly-ai-translated-from-russian)
 - [Contents](#contents)
 - [Introduction](#introduction)
 - [Project structure](#project-structure)
@@ -38,6 +37,8 @@
     - [Dissect structure](#dissect-structure)
     - [Handling multi-packet payloads](#handling-multi-packet-payloads)
     - [The track table structure](#the-track-table-structure)
+      - [icmp processing](#icmp-processing)
+      - [raw ip processing](#raw-ip-processing)
 - [nfqws2 C interface](#nfqws2-c-interface)
   - [Base constants](#base-constants)
   - [Standard blobs](#standard-blobs)
@@ -59,6 +60,7 @@
       - [parse\_hex](#parse_hex)
     - [Cryptography](#cryptography)
       - [bcryptorandom](#bcryptorandom)
+      - [bxor,bor,band](#bxorborband)
       - [hash](#hash)
       - [aes](#aes)
       - [aes\_gcm](#aes_gcm)
@@ -79,12 +81,14 @@
       - [reconstruct\_dissect](#reconstruct_dissect)
       - [reconstruct\_hdr](#reconstruct_hdr)
       - [csum\_fix](#csum_fix)
+    - [Obtaining IP addresses](#obtaining-ip-addresses)
     - [Receiving and sending Packets](#receiving-and-sending-packets)
       - [rawsend](#rawsend)
       - [raw\_packet](#raw_packet)
     - [Working with payloads](#working-with-payloads)
       - [Markers](#markers)
       - [resolve\_pos](#resolve_pos)
+      - [tls\_mod](#tls_mod)
     - [Instance execution management](#instance-execution-management)
       - [instance\_cutoff](#instance_cutoff)
       - [lua\_cutoff](#lua_cutoff)
@@ -121,6 +125,7 @@
   - [Working with L3 and L4 protocol elements](#working-with-l3-and-l4-protocol-elements)
     - [find\_tcp\_options](#find_tcp_options)
     - [ip6hdr](#ip6hdr)
+    - [ip protocol](#ip-protocol)
     - [packet\_len](#packet_len)
   - [Working with hostnames](#working-with-hostnames)
     - [genhost](#genhost)
@@ -138,6 +143,7 @@
     - [ipfrag2](#ipfrag2)
     - [wssize\_rewrite](#wssize_rewrite)
     - [dis\_reverse](#dis_reverse)
+  - [IP addresses and interfaces](#ip-addresses-and-interfaces)
   - [Sending](#sending)
     - [rawsend\_dissect\_ipfrag](#rawsend_dissect_ipfrag)
     - [rawsend\_dissect\_segmented](#rawsend_dissect_segmented)
@@ -280,7 +286,7 @@ zapret2 is a packet manipulator primarily designed to perform various autonomous
 
 The core component of zapret2 is the **nfqws2** program (**dvtws2** on BSD, **winws2** on Windows). Written in C, it serves as the primary packet manipulator. It includes functions for packet interception, basic [filtering](#using-multiple-profiles), recognition of major protocols and payloads, support for host and IP [lists](#filtering-by-lists), [automated](#failure-detector-and-auto-hostlists) hostlists with block detection, a system of multiple [profiles](#using-multiple-profiles) (strategies), [raw packet transmission](#receiving-and-sending-packets), and other utility functions. However, it does not contain the logic for traffic modification itself; this is handled by Lua code called from [nfqws2](#nfqws2).
 
-Consequently, the Lua code is the next most critical part of the project. The base package includes the [zapret-lib.lua](#zapret-liblua-base-function-library) helper library, the [zapret-antidpi.lua](#zapret-antidpilua-dpi-attack-program-library) DPI attack library, and the [zapret-auto.lua](#zapret-autolua-automation-and-orchestration-library) orchestration library for dynamic decision-making. Additionally, it features `zapret-tests.lua` for testing C functions, `zapret-wgobfs.lua` for WireGuard protocol obfuscation, and `zapret-pcap.lua` for capturing traffic into .cap files.
+Consequently, the Lua code is the next most critical part of the project. The base package includes the [zapret-lib.lua](#zapret-liblua-base-function-library) helper library, the [zapret-antidpi.lua](#zapret-antidpilua-dpi-attack-program-library) DPI attack library, and the [zapret-auto.lua](#zapret-autolua-automation-and-orchestration-library) orchestration library for dynamic decision-making. Additionally, it features `zapret-tests.lua` for testing C functions, `zapret-obfs.lua` for protocol obfuscation, and `zapret-pcap.lua` for capturing traffic into .cap files.
 
 Project requires LuaJIT-2.1+ or PUC Lua 5.3+. Older versions are not tested and not supported.
 
@@ -317,7 +323,7 @@ Further decisions are then made based on the fully assembled payload - [reasm](#
 
 Once the necessary information about the payload is obtained, the [profile](#using-multiple-profiles) classification system takes over.
 Profiles contain a set of filters and action commands.
-Profiles are filtered by L3 (IP protocol version, ipsets - IP address lists), L4 (TCP or UDP ports), and L6/L7 (flow protocol type, hostlists).
+Profiles are filtered by L3 (IP protocol version, IP protocol number, ipsets - IP address lists), L4 (TCP, UDP ports, ICMP type/code), and L6/L7 (flow protocol type, hostlists).
 Profiles are scanned strictly in order from first to last. Upon the first filter match, that profile is selected, and the scanning stops.
 If none of the conditions are met, a default profile with no actions is selected.
 
@@ -425,9 +431,7 @@ FWMARK=0x40000000
 PORTS_TCP=80,443
 PORTS_UDP=443
 QNUM=200
-```
 
-```bash
 JNFQ="-j NFQUEUE --queue-num $QNUM --queue-bypass"
 CHECKMARK="-m mark ! --mark $FWMARK/$FWMARK"
 CB_ORIG="-m connbytes --connbytes-dir=original --connbytes-mode=packets"
@@ -453,7 +457,7 @@ done
 
 Removing zapret test rules:
 
-```bash
+```
 for tables in iptables ip6tables; do
 	$tables -t mangle -D POSTROUTING -j ztest_post
 	$tables -t mangle -D PREROUTING -j ztest_pre
@@ -466,7 +470,7 @@ done
 
 Flushing all rules from the mangle table, including any other existing rules:
 
-```bash
+```
 iptables -F -t mangle
 ip6tables -F -t mangle
 ```
@@ -478,7 +482,7 @@ FreeBSD is particularly limited in this regard, as it lacks raw payload filterin
 Consequently, the first set of rules intercepts all outgoing traffic on specific ports, but only SYN+ACK, FIN, and RST packets for incoming TCP traffic. This allows the use of `autottl` mode and ensures `conntrack` functions correctly without excessive CPU load.
 However, this configuration will break any functionality that requires other types of incoming traffic.
 
-```bash
+```
 RULE=100
 IFACE_WAN=vmx0
 PORTS_TCP=80,443
@@ -496,15 +500,13 @@ ipfw add $RULE divert $PORT_DIVERT tcp from any $PORTS_TCP to any tcpflags rst i
 Alternative: Bidirectional stream interception. This puts a significant load on the CPU.
 Every gigabyte downloaded will pass through `dvtws2`. Usually, only 1 or 2 packets are actually needed; everything else is a waste of CPU cycles, but `ipfw` offers no other alternatives.
 
-```bash
+```
 RULE=100
 IFACE_WAN=vmx0
 PORTS_TCP=80,443
 PORTS_UDP=443
 PORT_DIVERT=989
-```
 
-```
 ipfw delete $RULE
 ipfw add $RULE divert $PORT_DIVERT tcp from any to any $PORTS_TCP out not diverted xmit $IFACE_WAN
 ipfw add $RULE divert $PORT_DIVERT udp from any to any $PORTS_UDP out not diverted xmit $IFACE_WAN
@@ -578,7 +580,15 @@ WinDivert cannot reliably intercept forwarded traffic when using Windows' built-
 
 `--wf-tcp-out`, `--wf-tcp-in`, `--wf-udp-out`, and `--wf-udp-in` take a list of ports (`80,443`) or port ranges (`80,443,500-1000`) and enable full port interception for the specified direction.
 
+`--wf-icmp-out`, `--wf-icmp-in` take a list of icmp types or icmp types+codes.
+
+`--wf-ipp-in`, `--wf-ipp-out` take a list of raw ip protocol numbers (extracting end protocol from ipv6 extension headers is not supported).
+
 `--wf-raw-part` accepts partial WinDivert filters. The syntax is identical to `--wf-raw`. Multiple `--wf-raw-part` instances can be used. These partial filters are integrated by the constructor into the final filter using OR logic: [specified ports] OR [filter1] OR [filter2].
+
+`--wf-raw-filter` - partial WinDivert filter combined with resulting full WinDivert filter by AND. Only one is allowed.
+Typical use - filtering by small list of IP addresses. For example, if your task is icmp tunnel to the server, intercepting all icmp type is a waste of CPU.
+Much better to add `--wf-raw-filter="ip.SrcAddr==1.2.3.4"` to `--wf-icmp-in=0`.
 
 `--wf-save=<filter_file>` writes the filter created by the constructor to a file for subsequent analysis and modification.
 
@@ -617,6 +627,7 @@ General parameters for all versions - nfqws2, dvtws2, winws2.
  --version                                              ; display version and exit
  --dry-run                                              ; validate command-line parameters and file existence. does not check Lua script correctness!
  --comment=any_text                                     ; any text. ignored
+ --intercept=0|1                                        ; allow interception. 0 - no, 1 - yes. If 0 lua-init scripts are executed then process exits. NFQUEUE is not initialized.
  --daemon                                               ; detach from the console (daemonize)
  --pidfile=<filename>                                   ; write PID to a file
  --ctrack-timeouts=S:E:F[:U]                            ; conntrack timeouts for tcp stages (SYN, ESTABLISHED, FIN) and for udp
@@ -643,6 +654,8 @@ MULTI-STRATEGY:
  --filter-l3=ipv4|ipv6                                  ; profile filter: IP protocol version
  --filter-tcp=[~]port1[-port2]|*                        ; profile filter: TCP ports or port ranges (comma-separated)
  --filter-udp=[~]port1[-port2]|*                        ; profile filter: UDP ports or port ranges (comma-separated)
+ --filter-icmp=type[:code]|*                            ; profile filter: ICMP type and codes (comma-separated)
+ --filter-ipp=proto|*                                   ; profile filter: raw IP protocol numbers (comma-separated)
  --filter-l7=proto[,proto]                              ; profile filter: list of application-layer protocols
  --ipset=<filename>                                     ; profile filter: inclusion list of IP addresses or subnets from a file (supports mixed IPv4/IPv6)
  --ipset-ip=<ip_list>                                   ; profile filter: fixed inclusion list of IP addresses or subnets (comma-separated)
@@ -701,8 +714,13 @@ Specific parameters for winws2:
  --wf-tcp-out=[~]port1[-port2]          ; WinDivert constructor: TCP ports or port ranges for interception in the outgoing direction. Comma-separated list.
  --wf-udp-in=[~]port1[-port2]           ; WinDivert constructor: UDP ports or port ranges for interception in the incoming direction. Comma-separated list.
  --wf-udp-out=[~]port1[-port2]          ; WinDivert constructor: UDP ports or port ranges for interception in the outgoing direction. Comma-separated list.
+ --wf-icmp-in=type[:code]               ; WinDivert constructor: ICMP types and codes for interception in the incoming direction. Comma-separated list.
+ --wf-icmp-out=[~]port1[-port2]         ; WinDivert constructor: ICMP types and codes for interception in the outgoing direction. Comma-separated list.
+ --wf-ipp-in=type[:code]                ; WinDivert constructor: raw IP protocols for interception in the incoming direction. Comma-separated list.
+ --wf-ipp-out=type[:code]               ; WinDivert constructor: raw IP protocols for interception in the outgoing direction. Comma-separated list.
  --wf-tcp-empty=[~]port1[-port2]        ; WinDivert constructor: intercept empty TCP ACK packets. Default is no.
- --wf-raw-part=<filter>|@<filename>     ; WinDivert constructor: partial WinDivert raw filter. Combined using the OR principle.
+ --wf-raw-part=<filter>|@<filename>     ; WinDivert constructor: partial WinDivert raw filter. Combined using OR principle. Multiple allowed.
+ --wf-raw-filter=<filter>|@<filename>   ; WinDivert constructor: partial WinDivert raw фильтр. Combined using AND principle. Only one is allowed.
  --wf-filter-lan=0|1                    ; WinDivert constructor: filter out non-global IP addresses. Default is yes.
  --wf-raw=<filter>|@<filename>          ; full WinDivert filter. Overrides the constructor.
  --wf-dup-check[=0|1]                   ; 1 (default) = do not allow duplicate winws2 instances with the same wf filter
@@ -736,6 +754,10 @@ Table of recognizable payload types and flow protocols
 | stun            | udp | stun |
 | dns             | udp | dns_query dns_response |
 | dtls            | udp | dtls_client_hello<br>dtls_server_hello |
+| <any>           | icmp | ipv4<br>ipv6<br>icmp|
+
+Special payload types are "ipv4", "ipv6", "icmp".  "ipv4" and "ipv6" are generated for icmp with attached IP packet.
+Other icmp have "icmp" payload type.
 
 ## Using multiple profiles
 
@@ -762,6 +784,13 @@ Up to two such jumps can occur, as there are only two variables affecting select
 For TLS, HTTP, and QUIC protocols, there is typically only one jump because the protocol and hostname are determined within a single packet or group of packets. For XMPP, there are two jumps: first, XMPP itself is identified; then, the transition to TLS is detected, and only then is the hostname extracted.
 When writing strategies, they should be designed with this jump logic in mind.
 If a strategy needs to start from the very first packet and continue working after a profile change, you must duplicate the calls across all profiles the flow might pass through.
+
+4 filter groups - tcp, udp, icmp, ipp are OR combined. If there're no filters in that groups - everything is allowed.
+If any defined - all undefined are blocked.
+
+ipp filter does not work with tcp, udp and icmp. They are checked by their specific filters. For example, `--filter-ipp=6` does not work. What is meant could be achieved with `--filter-tcp=*`.
+
+icmp automatically assumes icmpv6 - they are processed the same they. However icmp types for [icmp](https://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtml) and [icmpv6](https://www.iana.org/assignments/icmpv6-parameters/icmpv6-parameters.xhtml) differ.
 
 ### Profile templates
 
@@ -1053,8 +1082,9 @@ The function returns a verdict for the current packet: `VERDICT_PASS`, `VERDICT_
 - `VERDICT_PASS`: Passes the packet as-is, ignoring any changes to the dissection.
 - `VERDICT_MODIFY`: Reconstructs and sends the current dissection.
 - `VERDICT_DROP`: Drops the current packet.
+- `VERDICT_PRESERVE_NEXT` - special bit to be added to the main verdict. During reconstruction of modified packet use next protocol fields in ipv6 header and ipv6 extension headers. If not set they are autogenerated by dissect content.
 
-The results of all lua-desync instances are aggregated: VERDICT_MODIFY overrides VERDICT_PASS, and VERDICT_DROP overrides them both.
+The results of all lua-desync instances are aggregated: VERDICT_MODIFY overrides VERDICT_PASS, and VERDICT_DROP overrides them both. VERDICT_PRESERVE_NEXT is applied if any instance set it.
 
 ### Structure of the desync table
 
@@ -1345,6 +1375,7 @@ All multi-byte numeric values are automatically converted from network byte orde
 | ip6           | table  | IPv6 header                                                      |
 | tcp           | table  | TCP header                                                       |
 | udp           | table  | UDP header                                                       |
+| icmp          | table  | ICMP header                                                      |
 | l4proto       | number | IPPROTO_TCP or IPPROTO_UDP                                       |
 | transport_len | number | packet length excluding L3 headers                                |
 | l3_len        | number | length of L3 headers, including IP options and IPv6 extension headers |
@@ -1419,6 +1450,19 @@ All multi-byte numeric values are automatically converted from network byte orde
 | :--- | :--- |
 | kind | [option type](https://www.iana.org/assignments/tcp-parameters/tcp-parameters.xhtml): TCP_KIND_END, TCP_KIND_NOOP, TCP_KIND_MSS, TCP_KIND_SCALE, TCP_KIND_SACK_PERM, TCP_KIND_SACK, TCP_KIND_TS, TCP_KIND_MD5, TCP_KIND_AO, TCP_KIND_FASTOPEN |
 | data | the option data block excluding kind and length; absent for TCP_KIND_END and TCP_KIND_NOOP |
+
+**icmp**
+
+icmp header is the first 8 bytes of ICMP. This part is mandatory for all icmp types - both ipv4 and ipv6.
+Following data including optional headers or attached IP packet goes to payload.
+
+| Поле        | Описание                                             |
+| :---------- | :--------------------------------------------------- |
+| icmp_type   | [icmp type](https://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtml) |
+| icmp_code   | [icmp code](https://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtml) |
+| icmp_cksum  | ICMP checksum |
+| icmp_data   | 32-bit field at 4-byte offset |
+
 
 ### Handling multi-packet payloads
 
@@ -1501,6 +1545,28 @@ However, the latter simple comparison will not work correctly, whereas the forme
 It is impossible to track anything beyond that using sequences. Always keep in mind that when transferring large volumes of data, sequences cannot serve as a counter.
 The `p*counter` fields are 64-bit counters, so they do not suffer from this issue.
 
+#### icmp processing
+
+Some icmp types may contain an attached source packet to which icmp was generated. They are called "related."
+Such payloads are recognized, they are used to search the original conntrack record.
+If it is found, the cached profile (the one to which the attached package belongs) is selected.
+The direction is chosen as the reverse of the found record.
+The payload type is set to "ipv4" or "ipv6," the session protocol type is set from the source packet profile.
+Then icmp goes through the profile in the usual way. Desync function must be aware of this possibility.
+
+If icmp does not contain an attached package, it is invalid or conntrack record is not found, icmp passes on its own
+without track.
+
+conntrack works only with tcp and udp, it does not keep records of pings or other icmp types.
+No counters change when icmp traverses the conntrack entry.
+
+#### raw ip processing
+
+If the ip protocol is not recognized as tcp, udp, icmp, icmpv6, it is considered raw ip.
+Dissect has ip/ip6 field and payload. Payload contains all data after L3 headers.
+desync.track is always missing.
+
+
 # nfqws2 C interface
 
 Before executing `--lua-init`, the C code sets up base constants, blobs, and C functions.
@@ -1516,15 +1582,15 @@ Before executing `--lua-init`, the C code sets up base constants, blobs, and C f
 | NFQWS2_COMPAT_VER | number | sequence number of incompatible interface changes with nfqws2 | incremented by 1 for each change |
 | b_debug | bool | --debug enabled | debug message output |
 | b_daemon | bool | --daemon enabled | daemonize process, detach from tty |
-| b_server                                                                                                                                                                                                                                                           | bool   | --server enabled                                                                                 | Server mode                                         |
-| b_ipcache_hostname                                                                                                                                                                                                                                                 | bool   | --ipcache-hostname enabled                                                                       | Caching of hostnames corresponding to IP addresses |
-| b_ctrack_disable                                                                                                                                                                                                                                                   | bool   | --ctrack-disable enabled                                                                         | Conntrack disabled                                  |
-| VERDICT_PASS<br>VERDICT_MODIFY<br>VERDICT_DROP                                                                                                                                                                                                                     | number | Desync function verdict code                                                                     |                                                     |
-| DEFAULT_MSS                                                                                                                                                                                                                                                        | number | Default MSS value                                                                                | 1220                                                |
-| IP_BASE_LEN                                                                                                                                                                                                                                                        | number | Base IPv4 header size                                                                            | 20                                                  |
-| IP6_BASE_LEN                                                                                                                                                                                                                                                       | number | Base IPv6 header size                                                                            | 40                                                  |
-| TCP_BASE_LEN                                                                                                                                                                                                                                                       | number | Base TCP header size                                                                             | 20                                                  |
-| UDP_BASE_LEN                                                                                                                                                                                                                                                       | number | UDP header size                                                                                  | 8                                                   |
+| b_server  | bool   | --server enabled | Server mode  |
+| b_ipcache_hostname  | bool   | --ipcache-hostname enabled | Caching of hostnames corresponding to IP addresses |
+| b_ctrack_disable  | bool   | --ctrack-disable enabled     | Conntrack disabled |
+| VERDICT_PASS<br>VERDICT_MODIFY<br>VERDICT_DROP<br>VERDICT_PRESERVE_NEXT | number | Desync function verdict code<br>VERDICT_PRESERVE_NEXT is the bit addition to the main verdict|  |
+| DEFAULT_MSS  | number | Default MSS value      | 1220 |
+| IP_BASE_LEN  | number | Base IPv4 header size  | 20  |
+| IP6_BASE_LEN | number | Base IPv6 header size  | 40  |
+| TCP_BASE_LEN | number | Base TCP header size   | 20  |
+| UDP_BASE_LEN | number | UDP header size        | 8   |
 | TCP_KIND_END<br>TCP_KIND_NOOP<br>TCP_KIND_MSS<br>TCP_KIND_SCALE<br>TCP_KIND_SACK_PERM<br>TCP_KIND_SACK<br>TCP_KIND_TS<br>TCP_KIND_MD5<br>TCP_KIND_AO<br>TCP_KIND_FASTOPEN | number | TCP option type codes (kinds) | |
 | TH_FIN<br>TH_SYN<br>TH_RST<br>TH_PUSH<br>TH_ACK<br>TH_FIN<br>TH_URG<br>TH_ECE<br>TH_CWR | number | TCP flags | Can be combined using + |
 | IP_MF | number | IP "more fragments" flag | 0x8000, part of the ip_off field |
@@ -1534,15 +1600,23 @@ Before executing `--lua-init`, the C code sets up base constants, blobs, and C f
 | IP_FLAGMASK | number | Bitmask for the ip_off field corresponding to IP flags | 0xE000 |
 | IPTOS_ECN_MASK | number | Bitmask for the ip_tos field corresponding to ECN | 0x03 |
 | IPTOS_ECN_NOT_ECT | number | Not ECN-Capable Transport | 0x00 |
-| IPTOS_ECN_ECT1                                                                                                                                                                                                                                                     | number | ECN Capable Transport(1)                                                                         | 0x01                                                |
-| IPTOS_ECN_ECT1                                                                                                                                                                                                                                                     | number | ECN Capable Transport(0)                                                                         | 0x02                                                |
-| IPTOS_ECN_CE1                                                                                                                                                                                                                                                      | number | Congestion Experienced                                                                           | 0x03                                                |
-| IPTOS_DSCP_MASK                                                                                                                                                                                                                                                    | number | bitmask of the ip_tos field corresponding to DSCP                                                | 0xFC                                                |
-| IP6F_MORE_FRAG                                                                                                                                                                                                                                                     | number | "More fragments" bit of the ip6f_offlg field from the IPv6 fragment header                       | 0x0001                                              |
-| IP6                                                                                                                                                                                                                                                                | number | "More fragments" bit of the ip6f_offlg field from the IPv6 fragment header                       | 0x0001                                              |
-| IPV6_FLOWLABEL_MASK                                                                                                                                                                                                                                                | number | flow label in ip6_flow                                                                           | 0x000FFFFF                                          |
-| IPV6_FLOWINFO_MASK                                                                                                                                                                                                                                                 | number | flow label and traffic class in ip6_flow                                                         | 0x0FFFFFFF                                          |
-| IPPROTO_IP<br>IPPROTO_IPV6<br>IPPROTO_ICMP<br>IPPROTO_TCP<br>IPPROTO_UDP<br>IPPROTO_ICMPV6<br>IPPROTO_HOPOPTS<br>IPPROTO_ROUTING<br>IPPROTO_FRAGMENT<br>IPPROTO_AH<br>IPPROTO_ESP<br>IPPROTO_DSTOPTS<br>IPPROTO_MH<br>IPPROTO_HIP<br>IPPROTO_SHIM6<br>IPPROTO_NONE | number | [IP protocol numbers](https://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml) | used in IPv4 and IPv6                               |
+| IPTOS_ECN_ECT1 | number | ECN Capable Transport(1)     | 0x01 |
+| IPTOS_ECN_ECT0 | number | ECN Capable Transport(0)     | 0x02 |
+| IPTOS_ECN_CE  | number | Congestion Experienced        | 0x03 |
+| IPTOS_DSCP_MASK | number | bitmask of the ip_tos field corresponding to DSCP | 0xFC |
+| IP6F_MORE_FRAG  | number | "More fragments" bit of the ip6f_offlg field from the IPv6 fragment header | 0x0001 |
+| IPV6_FLOWLABEL_MASK | number | flow label in ip6_flow | 0x000FFFFF |
+| IPV6_FLOWINFO_MASK | number | flow label and traffic class in ip6_flow | 0x0FFFFFFF  |
+| IPPROTO_IP<br>IPPROTO_IPV6<br>IPPROTO_ICMP<br>IPPROTO_ICMPV6<br>IPPROTO_TCP<br>IPPROTO_UDP<br>IPPROTO_SCTP<br>IPPROTO_HOPOPTS<br>IPPROTO_ROUTING<br>IPPROTO_FRAGMENT<br>IPPROTO_AH<br>IPPROTO_ESP<br>IPPROTO_DSTOPTS<br>IPPROTO_MH<br>IPPROTO_HIP<br>IPPROTO_SHIM6<br>IPPROTO_NONE | number | [IP protocol numbers](https://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml) | used in IPv4 and IPv6 |
+| ICMP_ECHOREPLY<br>ICMP_DEST_UNREACH<br>ICMP_REDIRECT<br>ICMP_ECHO<br>ICMP_TIME_EXCEEDED<brICMP_PARAMETERPROB<br>ICMP_TIMESTAMP<br>ICMP_TIMESTAMPREPLY<br>ICMP_INFO_REQUEST<br>ICMP_INFO_REPLY | number | [icmp types](https://www.iana.org/assignments/icmp-parameters/icmp-parameters.xhtml) |
+| ICMP_UNREACH_NET<br>ICMP_UNREACH_HOST<br>ICMP_UNREACH_PROTOCOL<br>ICMP_UNREACH_PORT<br>ICMP_UNREACH_NEEDFRAG<br>ICMP_UNREACH_SRCFAIL<br>ICMP_UNREACH_NET_UNKNOWN<br>ICMP_UNREACH_HOST_UNKNOWN<br>ICMP_UNREACH_NET_PROHIB<br>ICMP_UNREACH_HOST_PROHIB<br>ICMP_UNREACH_TOSNET<br>ICMP_UNREACH_TOSHOST<br>ICMP_UNREACH_FILTER_PROHIB<br>ICMP_UNREACH_HOST_PRECEDENCE<br>ICMP_UNREACH_PRECEDENCE_CUTOFF | number | icmp codes for destination unreachable |
+| ICMP_REDIRECT_NET<br>ICMP_REDIRECT_HOST<br>ICMP_REDIRECT_TOSNET<br>ICMP_REDIRECT_TOSHOST | number | icmp codes for redirect |
+| ICMP_TIMXCEED_INTRANS<br>ICMP_TIMXCEED_REASS | number | icmp codes for time exceeded |
+| ICMP6_ECHO_REQUEST<br>ICMP6_ECHO_REPLY<br>ICMP6_DST_UNREACH<br>ICMP6_PACKET_TOO_BIG<br>ICMP6_TIME_EXCEEDED<br>ICMP6_PARAM_PROB<br>MLD_LISTENER_QUERY<br>MLD_LISTENER_REPORT<br>MLD_LISTENER_REDUCTION<br>ND_ROUTER_SOLICIT<br>ND_ROUTER_ADVERT<br>ND_NEIGHBOR_SOLICIT<br>ND_NEIGHBOR_ADVERT<br>ND_REDIRECT | number | [icmpv6 types](https://www.iana.org/assignments/icmpv6-parameters/icmpv6-parameters.xhtml) |
+| ICMP6_DST_UNREACH_NOROUTE<br>ICMP6_DST_UNREACH_ADMIN<br>ICMP6_DST_UNREACH_BEYONDSCOPE<br>ICMP6_DST_UNREACH_ADDR<br>ICMP6_DST_UNREACH_NOPORT | number | коды icmpv6 для destination unreachable |
+| ICMP6_TIME_EXCEED_TRANSIT<br>ICMP6_TIME_EXCEED_REASSEMBLY | number | icmpv6 codes for time exceeded |
+| ICMP6_PARAMPROB_HEADER<br>ICMP6_PARAMPROB_NEXTHEADER<br>ICMP6_PARAMPROB_OPTION | number | icmpv6 codes for parameter problem |
+
 
 ## Standard blobs
 
@@ -1743,6 +1817,16 @@ Generates a raw string containing a cryptographically secure block of random dat
 If the entropy pool is exhausted, this function may cause the process to hang (block). To prevent this, install `haveged` or `rngd`.
 This should not be used for random data that does not require cryptographic security.
 
+#### bxor,bor,band
+
+```
+function bxor(data1, data2)
+function band(data1, data2)
+function bor(data1, data2)
+```
+
+Return per-byte xor,and,or between 2 equal sized raw string. Error is generated if string sizes are not equal.
+
 #### hash
 
 ```
@@ -1882,6 +1966,7 @@ Dissect reconstruction options-`reconstruct_opts`. Reconstruction is the process
 
 | Field             | Type   | Description                                                                                       |
 | :---------------- | :----- | :------------------------------------------------------------------------------------------------ |
+| keepsum           | bool   | Use checksum from the dissect as is. Do not calculate or corrupt. |
 | badsum            | bool   | Corrupt the L4 checksum. Calculates the checksum and XORs it with a random value from 1 to 0xFFFF |
 | ip6_preserve_next | bool   | Use the "next" values from `ip6.exthdr`                                                           |
 | ip6_last_proto    | number | If `ip6_preserve_next=false`, specifies the IP protocol for the last `exthdr`                     |
@@ -1890,7 +1975,8 @@ When assembling IPv6 by default, the chain of IP protocols in the `exthdr` is bu
 Each `exthdr` has a `type` field, making it clear what to write into the previous `exthdr` or the main `ip6` header. The `next` protocol of the last `exthdr` is set to `IPPROTO_TCP` or `IPPROTO_UDP` depending on whether `tcp` or `udp` tables are present in the dissect.
 In most cases, this is convenient because when inserting an `exthdr`, you do not need to reconstruct the entire chain of `next` protocols or fill in the `next` fields manually. The dissect reconstructor handles this for you.
 
-The `ip6_preserve_next` mode is used for specific tasks that require manual crafting of `next protocol` fields. In this case, the `next` fields in the `exthdr` and `ip6.ip6_nxt` are left as is.
+Use ip6_preserve_next if you have a special task that requires manual crafting of the next protocol fields.
+In this case, the next fields in exthdr and ip6.ip6_nxt are left as is.
 
 If you are reconstructing an IPv6 header separately and are not using the `ip6_preserve_next` option, it is impossible to automatically determine what should be written into the last `exthdr`. In this case, `ip6_last_proto` is used, or `IPPROTO_NONE` if `ip6_last_proto` is not specified.
 
@@ -1898,6 +1984,9 @@ If you are reconstructing an IPv6 header separately and are not using the `ip6_p
 The checksum includes elements from the IP/IPv6 header, the entire TCP header, and the payload itself.
 Therefore, it is impossible to guaranteed a corrupted checksum by looking at individual parts alone.
 No matter what value you input, there is a small probability (1/65536) that it will happen to be valid.
+
+The packet is formed based on the L3 header, then the L4 header (TCP,UDP,ICMP, if present) is appended, followed by the payload.
+During reconstruction IP protocol fields are ignored. Therefore, it is possible to construct TCP,UDP,ICMP packets with a modified IP protocol.
 
 #### standard rawsend
 
@@ -1961,15 +2050,16 @@ If the C code detects that fragmentation is required, it validates the calculate
 ```
 function reconstruct_tcphdr(tcp)
 function reconstruct_udphdr(udp)
+function reconstruct_icmphdr(icmp)
 function reconstruct_iphdr(ip)
 function reconstruct_ip6hdr(ip6, reconstruct_opts)
 ```
 
 Reconstructs the corresponding raw headers from the dissect tables. Returns the raw version of the header.
 
-- IPv6 reconstruction utilizes `reconstruct_opts`, specifically extracting `ip6_preserve_next` and `ip6_last_proto`.
+- IPv6 reconstruction utilizes `reconstruct_opts`, specifically `ip6_preserve_next` and `ip6_last_proto`.
 - The IP header checksum is calculated automatically since it does not depend on any other components.
-- TCP and UDP checksums are not calculated automatically because they depend on other components.
+- TCP, UDP and ICMP checksums are not calculated automatically because they depend on other components.
 
 #### csum_fix
 
@@ -1977,16 +2067,55 @@ Reconstructs the corresponding raw headers from the dissect tables. Returns the 
 function csum_ip4_fix(raw_ipv4_header)
 function csum_tcp_fix(raw_ip_header, raw_tcp_header, payload)
 function csum_udp_fix(raw_ip_header, raw_udp_header, payload)
+function csum_icmp_fix(raw_ip_header, raw_icmp_header, payload)
 ```
 
 Functions for fixing checksums. Since strings in Lua are immutable, these functions return a copy of the respective header with the corrected checksum.
 
 - `csum_ipv4_fix` is straightforward: it takes an IP header as input and returns an IP header with the corrected checksum.
-- `csum_tcp_fix` and `csum_udp_fix` take a raw IP header (IPv4 or IPv6), a TCP/UDP header, and the payload. The IP version is detected automatically. The checksum is calculated based on the L3 and L4 headers and the payload.
+- `csum_tcp_fix`, `csum_udp_fix` `csum_icmp_fix` take a raw IP header (IPv4 or IPv6), a TCP/UDP/ICMP header, and the payload. The IP version is detected automatically. The checksum is calculated based on the L3 and L4 headers and the payload.
 
 Direct reconstruction of individual headers is rarely necessary. Typically, all tasks are handled by functions working with dissects.
-However, in special cases-for example, if you need to construct an ICMP packet-you will have to assemble it piece by piece and use `rawsend` for transmission.
-You will almost certainly need `csum_ip4_fix` in such scenarios.
+
+### Obtaining IP addresses
+
+```
+function get_source_ip(target)
+```
+
+Get source IP (raw string) that would be use for connection the the target IP.
+Returns nil if destination is unreachable.
+
+```
+function get_ifaddrs()
+```
+
+Get all interfaces and IPs on them (analog of "ip addr", "ifconfig", "ipconfig").
+Returns table indexed by interface names. In Windows interface names are in the "number.number" form - IfxIdx.SubIfIdx.
+This is WinDivert compatible.
+
+Interface table contents :
+
+| Поле              | Тип    | Описание            |
+| :---------------- | :----- | :------------------ |
+| index             | number | interface index |
+| mtu               | number | MTU. for loopback can be 64K or oven 0xFFFFFFFF |
+| flags             | number | os-specific bit flags |
+| ssid              | string | wifi SSID if known. SSIDs are obtained only if `--filter-ssid` is used in any profile |
+| guid<br>iftype<br>index6<br>speed_xmit<br>speed_recv<br>metric4<br>metric6<br>conntype<br> | number | (windows only) additional fields from GetAdaptersAddresses() |
+| addr              | table  | integer indexed array of addresses |
+
+Address contents :
+
+| Поле         | Тип    | Описание            |
+| :----------- | :----- | :------------------ |
+| addr         | string | ipv4 or ipv6 address - raw string |
+| netmask      | string | subnet mask - raw string |
+| broadcast    | string | (ipv4 only) broadcast address - raw string |
+| dst          | string | ifa_dstaddr from getifaddrs() - raw string |
+
+Only "addr" field is always present. Others can be absent.
+
 
 ### Receiving and sending Packets
 
@@ -2048,6 +2177,25 @@ function resolve_range(blob,l7payload_type,marker_list[,strict,zero_based_pos])
 - `resolve_range` resolves a list of exactly 2 markers representing a range within the payload. If `strict = true` and any marker fails to resolve, it returns `nil`. Otherwise, if the first marker fails to resolve, it is replaced with 0. If the second marker fails to resolve, it is replaced with the payload length. If both fail to resolve, it returns `nil`.
 - If `zero_based_pos=true` is set, all positions start from 0; otherwise, they start from 1, as is standard in Lua.
 - An `error` is raised for invalid values of `l7payload_type`, `marker`, `marker_list`, or if the number of markers for `resolve_range` is not equal to 2.
+
+#### tls_mod
+
+```
+function tls_mod(blob, modlist, payload)
+```
+
+- blob - the blob being acted upon
+- payload - the content to which the blob is modified. For different mods payload can be arbitrary or a valid TLS is required.
+- modlist - comma separated list of modifications
+  
+Mods :
+
+- **rnd** - fill random and session id fields with random data
+- **dupsid** - copy session id from payload. executaed after "rnd". requires valid TLS payload or not applied.
+- **rndsni** - replace SNI with random domain. If length(original sni)>=7 chars, a random subdomain is generated from a random well known 3-letter TLD. Otherwise a random string matching regexp `[a-z][a-z0-9]*`
+- **sni**=domain.com - replace SNI with specified domain
+- **padencap** - Adjust the blob so that the payload becomes part of the padding extension. The payload can be arbitrary.
+
 
 ### Instance execution management
 
@@ -2852,6 +3000,27 @@ function del_ip6_exthdr(ip6, idx)
 function fix_ip6_next(ip6, last_proto)
 ```
 
+### ip protocol
+
+```
+function ip_proto_l3(dis)
+function ip_proto_l4(dis)
+function ip_proto(dis)
+```
+
+Functions discover ip protocol of the end payload.
+
+* ip_proto_l3 - ipv4 - ip.ip_p , ipv6 - ip6.ip6_nxt or next from the last extension header. nil, if next field is not set.
+* ip_proto_l4 - IPPROTO_TCP, IPPROTO_UDP, IPPROTO_ICMP, IPPROTO_UDP depending on presence of tcp,udp,icmp,ip6. nil if tcp,udp,icmp are absent.
+* ip_proto - ip_proto_l4. если он вернул nil, то ip_proto_l3.
+
+```
+function fix_ip_proto(dis, proto)
+```
+
+Set end protocol as proto. If proto is not passed or nil - use result of "ip_proto(dis)".
+
+
 ### packet_len
 
 These functions work with the IPv6 header dissect `ip6` and its extension headers (`ip6.exthdr`).
@@ -3131,6 +3300,24 @@ function dis_reverse(dis)
 ```
 
 Swap the source and destination IP addresses and ports, as well as the seq and ack numbers.
+
+## IP addresses and interfaces
+
+```
+function update_ifaddrs()
+```
+
+A wrapper around the C function [get_ifaddrs](#obtaining-ip-addresses). It may happen that you need to find the addresses on each packet.
+Calling get_ifaddrs every time is CPU intensive. Addresses and interfaces rarely change.
+update_ifaddrs() maintains the cache, which is updated no more than once per second.
+The result is stored in the global variable "ifaddrs".
+
+```
+function ip2ifname(ip)
+```
+
+Get the name of the interface on which the IP address is present using the ifaddrs cache. nil if not found.
+
 
 ## Sending
 
@@ -3490,7 +3677,7 @@ function syndata(ctx, desync)
 - arg: [standard reconstruct](#standard-reconstruct)
 - arg: [standard rawsend](#standard-rawsend)
 - arg: blob - a [blob](#passing-blobs) containing the fake payload. It must fit into a single packet; segmentation is not possible.
-- arg: tls_mod - apply the specified tls_mod to the blob payload.
+- arg: tls_mod - apply the specified [tls_mod](#tls-mod) to the blob payload.
 
 The function adds a payload to the TCP SYN packet, applies modifications to it, and sends it instead of the original, issuing a `VERDICT_DROP`.
 If a non-SYN packet passes through, [instance cutoff](#instance_cutoff) is executed.
@@ -3541,7 +3728,7 @@ function fake(ctx, desync)
 - arg: [standard rawsend](#standard-rawsend)
 - arg: blob - a blob containing the fake payload. It can be of any length-segmentation is performed automatically.
 - arg: optional - abort the operation if the blob is missing.
-- arg: tls_mod - apply the specified tls_mod to the blob payload.
+- arg: tls_mod - apply the specified [tls_mod](#tls-mod) to the blob payload.
 - default payload filter - "known"
 
 This is a direct fake-a separate packet or group of packets. The function does not issue a verdict and does not block the transmission of the original packet.
