@@ -2,6 +2,7 @@ CC ?= cc
 PKG_CONFIG ?= pkg-config
 OPTIMIZE ?= -Os
 CFLAGS += -std=gnu99 $(OPTIMIZE) -flto=auto
+CFLAGS_LINUX = -Wno-alloc-size-larger-than
 CFLAGS_SYSTEMD = -DUSE_SYSTEMD
 CFLAGS_BSD = -Wno-address-of-packed-member
 CFLAGS_CYGWIN = -Wno-address-of-packed-member -static
@@ -131,10 +132,10 @@ LUA_CFL += $(LUA_CFLAGS)
 all: nfqws2
 
 nfqws2: $(SRC_FILES)
-	$(CC) -s $(CFLAGS) $(LUA_CFL) -o nfqws2 $(SRC_FILES) $(LIBS) $(LUA_LIB) $(LIBS_LINUX) $(LDFLAGS)
+	$(CC) -s $(CFLAGS) $(LUA_CFL) $(CFLAGS_LINUX) -o nfqws2 $(SRC_FILES) $(LIBS) $(LUA_LIB) $(LIBS_LINUX) $(LDFLAGS)
 
 systemd: $(SRC_FILES)
-	$(CC) -s $(CFLAGS) $(LUA_CFL) $(CFLAGS_SYSTEMD) -o nfqws2 $(SRC_FILES) $(LIBS) $(LUA_LIB) $(LIBS_LINUX) $(LIBS_SYSTEMD) $(LDFLAGS)
+	$(CC) -s $(CFLAGS) $(LUA_CFL) $(CFLAGS_LINUX) $(CFLAGS_SYSTEMD) -o nfqws2 $(SRC_FILES) $(LIBS) $(LUA_LIB) $(LIBS_LINUX) $(LIBS_SYSTEMD) $(LDFLAGS)
 
 android: $(SRC_FILES)
 	$(CC) -s $(CFLAGS) $(LUA_CFL) -o nfqws2 $(SRC_FILES) $(LIBS) $(LUA_LIB) $(LIBS_LINUX) $(LDFLAGS) $(LDFLAGS_ANDROID)
