@@ -260,16 +260,30 @@ end
 -- test case :
 --  client:
 --   --in-range="<d1" --out-range="<d1" --lua-desync=desync=synhide:synack:ghost=2
---   nft add rule inet ztest post meta mark & 0x40000000 == 0x00000000 tcp dport 80 tcp flags & (fin | syn | rst | ack | urg) == syn queue flags bypass to 200
---   nft add rule inet ztest pre meta mark & 0x40000000 == 0x00000000 tcp sport 80 tcp flags & (fin | syn | rst | ack | urg) == (rst | ack) tcp urgptr != 0 queue flags bypass to 200
+--   nft add rule inet ztest post meta mark & 0x40000000 == 0x00000000 tcp dport { 80, 443 } tcp flags & (fin | syn | rst | ack | urg) == syn queue flags bypass to 200
+--   nft add rule inet ztest pre meta mark & 0x40000000 == 0x00000000 tcp sport { 80, 443 } tcp flags & (fin | syn | rst | ack | urg) == (rst | ack) tcp urgptr != 0 queue flags bypass to 200
+--   nft add rule inet ztest pre meta mark & 0x40000000 == 0x00000000 tcp sport { 80, 443 } tcp flags & (fin | syn | rst | ack | urg) == (rst | ack) tcp option 172 exists queue flags bypass to 200
+--   nft add rule inet ztest pre meta mark & 0x40000000 == 0x00000000 tcp sport { 80, 443 } tcp flags & (fin | syn | rst | ack | urg) == (rst | ack) @th,100,4 != 0 queue flags bypass to 200
+--   nft add rule inet ztest pre meta mark & 0x40000000 == 0x00000000 tcp sport { 80, 443 } tcp flags & (fin | syn | rst | ack | urg) == (rst | ack) ct state new queue flags bypass to 200
 --  server:
 --   --in-range=a --lua-desync=synhide:synack
---   nft add rule inet ztest post meta mark & 0x40000000 == 0x00000000 tcp sport 80 tcp flags & (fin | syn | rst | ack | urg) == (syn | ack) queue flags bypass to 200
---   nft add rule inet ztest pre meta mark & 0x40000000 == 0x00000000 tcp dport 80 tcp flags & (fin | syn | rst | ack | urg) == ack tcp urgptr != 0 queue flags bypass to 200
--- hides tcp 3-way handshake from DPI. optionally uses ghost SYN with low ttl to punch NAT hole
+--   nft add rule inet ztest post meta mark & 0x40000000 == 0x00000000 tcp sport { 80, 443 } tcp flags & (fin | syn | rst | ack | urg) == (syn | ack) queue flags bypass to 200
+--   nft add rule inet ztest pre meta mark & 0x40000000 == 0x00000000 tcp dport { 80, 443 } tcp flags & (fin | syn | rst | ack | urg) == ack tcp urgptr != 0 queue flags bypass to 200
+--   nft add rule inet ztest pre meta mark & 0x40000000 == 0x00000000 tcp dport { 80, 443 } tcp flags & (fin | syn | rst | ack | urg) == ack tcp option 172 exists queue flags bypass to 200
+--   nft add rule inet ztest pre meta mark & 0x40000000 == 0x00000000 tcp dport { 80, 443 } tcp flags & (fin | syn | rst | ack | urg) == ack @th,100,4 != 0 queue flags bypass to 200
+--   nft add rule inet ztest pre meta mark & 0x40000000 == 0x00000000 tcp dport { 80, 443 } tcp flags & (fin | syn | rst | ack | urg) == ack ct state new queue flags bypass to 200
+-- hides tcp handshake from DPI optinally using ghost SYN packed with low ttl to punch NAT hole
+-- NOTE: linux conntrack treats packets without SYN in SYN_SENT state as INVALID ! NAT does not work !
+-- NOTE: the only found workaround - put NFQUEUE handler to that packet. It should only return pass verdict.
+-- NOTE: BSD and CGNAT should work
+-- NOTE: won't likely pass home routers even with hardware offload enabled - SYN state is managed in netfilter before offload. but can work from router itself.
 -- arg : ghost - ghost syn ttl for ipv4. must be hop_to_last_nat+1. syn is not ghosted if not supplied
 -- arg : ghost6 - ghost syn hl for ipv6. must be hop_to_last_nat+1. syn is not ghosted if not supplied
 -- arg : synack - also fake synack
+-- arg : magic=[tsecr|x2|urp|opt] - where to put magic value to recognize modified packets
+-- arg : x2=bit - th_x2 bit used for magic=x2 - 1,2,4,8
+-- arg : kind - kind of tcp option for magic=opt
+-- arg : opt=hex - tcp option value
 function synhide(ctx, desync)
 	if not desync.dis.tcp then
 		instance_cutoff_shim(ctx, desync)
@@ -277,6 +291,55 @@ function synhide(ctx, desync)
 	end
 
 	local fl = bitand(desync.dis.tcp.th_flags, TH_SYN+TH_ACK+TH_FIN+TH_RST+TH_URG)
+	local tsidx = find_tcp_option(desync.dis.tcp.options, TCP_KIND_TS)
+	local magic
+	if desync.arg.magic then
+		if desync.arg.magic~="tsecr" and desync.arg.magic~="x2" and desync.arg.magic~="urp" and desync.arg.magic~="opt" then
+			error("synhide: invalid magic mode '"..desync.arg.magic.."'")
+		end
+		magic = desync.arg.magic
+		if magic=="tsecr" and not isidx then
+			DLOG("synhide: cannot use tsecr magic because timestamp option is absent")
+			instance_cutoff_shim(ctx, desync)
+			return
+		end
+	else
+		magic = tsidx and "tsecr" or "x2"
+	end
+	DLOG("synhide: magic="..magic)
+
+	local x2
+	if desync.arg.x2 then
+		x2 = tonumber(desync.arg.x2)
+		if x2<1 or x2>0x0F then
+			error("synhide: invalid x2 value")
+		end
+	else
+		-- some firewalls allow only AECN bit (1). if reserved bits are !=0 => administratively prohibited
+		x2 = 1
+	end
+
+	local kind
+	if desync.arg.kind then
+		kind = tonumber(desync.arg.kind)
+		-- do not allow noop and end
+		if kind<2 or kind>0xFF then
+			error("synhide: invalid kind value")
+		end
+	else
+		-- some firewalls allow only AECN bit (1). if reserved bits are !=0 => administratively prohibited
+		kind = 172 -- accurate ecn
+	end
+
+	local opt
+	if desync.arg.opt then
+		opt = parse_hex(desync.arg.opt)
+		if not opt then
+			error("synhide: invalid opt value")
+		end
+	else
+		opt=""
+	end
 
 	local function make_magic(client)
 		local m
@@ -290,13 +353,41 @@ function synhide(ctx, desync)
 		return m
 	end
 	local function set_magic(client)
-		desync.dis.tcp.th_urp = make_magic(client)
+		if magic=="tsecr" then
+			desync.dis.tcp.options[tsidx].data = string.sub(desync.dis.tcp.options[tsidx].data,1,6) .. bu16(make_magic(client))
+		elseif magic=="x2" then
+			desync.dis.tcp.th_x2 = bitor(desync.dis.tcp.th_x2, x2)
+		elseif magic=="urp" then
+			desync.dis.tcp.th_urp = make_magic(client)
+		elseif magic=="opt" then
+			table.insert(desync.dis.tcp.options, {kind=kind, data=opt})
+		end
 	end
 	local function ver_magic(client)
-		return desync.dis.tcp.th_urp == make_magic(client)
+		if magic=="tsecr" then
+			return make_magic(client)==u16(string.sub(desync.dis.tcp.options[tsidx].data,7))
+		elseif magic=="x2" then
+			return bitand(desync.dis.tcp.th_x2, x2)~=0
+		elseif magic=="urp" then
+			return desync.dis.tcp.th_urp == make_magic(client)
+		elseif magic=="opt" then
+			local idx = find_tcp_option(desync.dis.tcp.options, kind)
+			return idx and desync.dis.tcp.options[idx].data == opt
+		end
 	end
 	local function clear_magic()
-		return desync.dis.tcp.th_urp == 0
+		if magic=="tsecr" then
+			desync.dis.tcp.options[tsidx].data = string.sub(desync.dis.tcp.options[tsidx].data,1,6) .. "\x00\x00"
+		elseif magic=="x2" then
+			desync.dis.tcp.th_x2 = bitand(desync.dis.tcp.th_x2,bitnot(1))
+		elseif magic=="urp" then
+			desync.dis.tcp.th_urp = 0
+		elseif magic=="opt" then
+			local idx = find_tcp_option(desync.dis.tcp.options, kind)
+			if idx then
+				table.remove(desync.dis.tcp.options, idx)
+			end
+		end
 	end
 
 	if fl==TH_SYN then
