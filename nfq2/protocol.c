@@ -364,7 +364,7 @@ bool HttpReplyLooksLikeDPIRedirect(const uint8_t *data, size_t len, const char *
 	char loc[256],*redirect_host, *p;
 	int code;
 	
-	if (!host || !*host) return false;
+	if (!host || !*host || !IsHttpReply(data, len)) return false;
 	
 	code = HttpReplyCode(data,len);
 	
@@ -977,7 +977,7 @@ static uint8_t tvb_get_varint(const uint8_t *tvb, uint64_t *value)
 		return 8;
 	}
 	// impossible case
-	if (*value) *value = 0;
+	if (value) *value = 0;
 	return 0;
 }
 static uint8_t tvb_get_size(uint8_t tvb)
@@ -1220,12 +1220,12 @@ bool QUICDecryptInitial(const uint8_t *data, size_t data_len, uint8_t *clean, si
 	*clean_len = cryptlen;
 	const uint8_t *decrypt_begin = data + pn_offset + pkn_len;
 
-	uint8_t atag[16],header[256];
+	uint8_t atag[16],header[2048];
 	size_t header_len = pn_offset + pkn_len;
 	if (header_len > sizeof(header)) return false; // not likely header will be so large
 	memcpy(header, data, header_len);
 	header[0] = packet0;
-	for(uint8_t i = 0; i < pkn_len; i++) header[header_len - 1 - i] = (uint8_t)(pkn >> (8 * i));
+	for(size_t i = 0; i < pkn_len; i++) header[header_len - 1 - i] = (uint8_t)(pkn >> (8 * i));
 
 	if (aes_gcm_crypt(AES_DECRYPT, clean, decrypt_begin, cryptlen, aeskey, sizeof(aeskey), aesiv, sizeof(aesiv), header, header_len, atag, sizeof(atag)))
 		return false;
@@ -1435,8 +1435,8 @@ bool IsStunMessage(const uint8_t *data, size_t len)
 	return len>=20 && // header size
 		(data[0]&0xC0)==0 && // 2 most significant bits must be zeroes
 		(data[3]&3)==0 && // length must be a multiple of 4
-		ntohl(*(uint32_t*)(&data[4]))==0x2112A442 && // magic cookie
-		ntohs(*(uint16_t*)(&data[2]))==len-20;
+		ntohl(pntoh32(data+4))==0x2112A442 && // magic cookie
+		ntohs(pntoh16(data+2))==(len-20);
 }
 #if defined(__GNUC__) && !defined(__llvm__)
 __attribute__((optimize ("no-strict-aliasing")))

@@ -86,7 +86,7 @@ uint8_t tcp_find_scale_factor(const struct tcphdr *tcp)
 uint16_t tcp_find_mss(const struct tcphdr *tcp)
 {
 	uint8_t *t = tcp_find_option((struct tcphdr *)tcp, TCP_KIND_MSS);
-	return (t && t[1]==4) ? *(uint16_t*)(t+2) : 0;
+	return (t && t[1]==4) ? pntoh16(t+2) : 0;
 }
 bool tcp_synack_segment(const struct tcphdr *tcphdr)
 {

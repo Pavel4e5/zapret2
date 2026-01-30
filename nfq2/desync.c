@@ -234,10 +234,6 @@ static bool dp_match(
 			if (!ipp_filters_match(&dp->ipf, l3proto)) return false;
 	}
 
-	if (l3proto == IPPROTO_ICMP && !icmp_filters_match(&dp->icf, icmp_type, icmp_code))
-		// icmp filter does not match
-		return false;
-
 	if (!l7_proto_match(l7proto, dp->filter_l7))
 		// L7 filter does not match
 		return false;

@@ -289,6 +289,12 @@ static bool nfq_init(struct nfq_handle **h, struct nfq_q_handle **qh)
 		goto exiterr;
 	}
 
+	DLOG_CONDUP("binding nfnetlink_queue as nf_queue handler for AF_INET6\n");
+	if (nfq_bind_pf(*h, AF_INET6) < 0) {
+		DLOG_PERROR("nfq_bind_pf()");
+		// do not fail - kernel may not support ipv6
+	}
+
 	DLOG_CONDUP("binding this socket to queue '%u'\n", params.qnum);
 	*qh = nfq_create_queue(*h, params.qnum, &nfq_cb, &params);
 	if (!*qh) {
