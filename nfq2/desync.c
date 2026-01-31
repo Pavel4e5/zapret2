@@ -630,8 +630,8 @@ static uint8_t ct_new_postnat_fix(const t_ctrack *ctrack, const struct dissect *
 				((struct ip*)mod_pkt)->ip_ttl = 1;
 			}
 			*len_mod_pkt = dis->len_pkt;
+			return VERDICT_MODIFY | VERDICT_NOCSUM;
 		}
-		return VERDICT_MODIFY | VERDICT_NOCSUM;
 	}
 #endif
 	return VERDICT_DROP;

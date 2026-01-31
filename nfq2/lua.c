@@ -1565,7 +1565,7 @@ void lua_push_ip6hdr(lua_State *L, const struct ip6_hdr *ip6, size_t len)
 {
 	LUA_STACK_GUARD_ENTER(L)
 
-	if (ip6)
+	if (ip6 && len>=sizeof(struct ip6_hdr))
 	{
 		lua_createtable(L, 0, 7);
 		lua_pushf_lint(L,"ip6_flow",ntohl(ip6->ip6_ctlun.ip6_un1.ip6_un1_flow));

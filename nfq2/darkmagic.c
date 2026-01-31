@@ -373,7 +373,7 @@ void print_icmphdr(const struct icmp46 *icmp, bool v6)
 
 bool proto_check_ipv4(const uint8_t *data, size_t len)
 {
-	return 	len >= sizeof(struct ip) && (data[0] & 0xF0) == 0x40 &&
+	return 	len >= sizeof(struct ip) && (data[0] & 0xF0) == 0x40 && (data[0] & 0x0F)>=5 &&
 		len >= ((data[0] & 0x0F) << 2);
 }
 // move to transport protocol
@@ -402,7 +402,8 @@ bool proto_check_udp(const uint8_t *data, size_t len)
 }
 bool proto_check_udp_payload(const uint8_t *data, size_t len)
 {
-	return len >= ntohs(((struct udphdr*)data)->uh_ulen);
+	uint16_t l = ntohs(((struct udphdr*)data)->uh_ulen);
+	return l>=sizeof(struct udphdr) && len >= l;
 }
 void proto_skip_udp(const uint8_t **data, size_t *len)
 {
@@ -2267,8 +2268,10 @@ void verdict_udp_csum_fix(uint8_t verdict, struct udphdr *udphdr, size_t transpo
 		#ifdef __FreeBSD__
 		if (ip6hdr)
 		#endif
+		{
 			DLOG("fixing udp checksum\n");
 			udp_fix_checksum(udphdr,transport_len,ip,ip6hdr);
+		}
 	}
 #endif
 }
@@ -2284,8 +2287,10 @@ void verdict_icmp_csum_fix(uint8_t verdict, struct icmp46 *icmphdr, size_t trans
 		#ifdef __FreeBSD__
 		if (ip6hdr)
 		#endif
+		{
 			DLOG("fixing icmp checksum\n");
 			icmp_fix_checksum(icmphdr,transport_len,ip6hdr);
+		}
 	}
 #endif
 }

@@ -410,7 +410,7 @@ function synhide(ctx, desync)
 		if magic=="tsecr" then
 			desync.dis.tcp.options[tsidx].data = string.sub(desync.dis.tcp.options[tsidx].data,1,6) .. "\x00\x00"
 		elseif magic=="x2" then
-			desync.dis.tcp.th_x2 = bitand(desync.dis.tcp.th_x2,bitnot(1))
+			desync.dis.tcp.th_x2 = bitand(desync.dis.tcp.th_x2,bitnot(x2))
 		elseif magic=="urp" then
 			desync.dis.tcp.th_urp = 0
 		elseif magic=="opt" then

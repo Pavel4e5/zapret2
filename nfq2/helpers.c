@@ -109,7 +109,7 @@ bool load_file(const char *filename, off_t offset, void *buffer, size_t *buffer_
 
 	if (offset)
 	{
-		if (-1 == lseek(fileno(F), offset, SEEK_SET))
+		if (fseek(F, offset, SEEK_SET))
 		{
 			fclose(F);
 			return false;
