@@ -57,8 +57,6 @@ struct desync_profile
 {
 	unsigned int n;	// number of the profile
 	char *name; // optional malloced name string
-	unsigned int n_tpl; // number of imported template
-	char *name_tpl; // imported template name
 	char *cookie; // optional malloced string
 
 	bool filter_ipv4,filter_ipv6;
@@ -90,6 +88,13 @@ struct desync_profile
 	time_t hostlist_auto_last_purge;
 
 	struct func_list_head lua_desync;
+
+	// was option set ?
+	bool b_hostlist_auto_fail_threshold, b_hostlist_auto_fail_time,b_hostlist_auto_retrans_threshold;
+	bool b_hostlist_auto_retrans_maxseq, b_hostlist_auto_incoming_maxseq, b_hostlist_auto_retrans_reset;
+	bool b_hostlist_auto_udp_out, b_hostlist_auto_udp_in;
+	bool b_filter_l3, b_filter_l7;
+
 };
 #define PROFILE_NAME(dp) ((dp)->name ? (dp)->name : "noname")
 
@@ -104,7 +109,7 @@ struct desync_profile_list {
 LIST_HEAD(desync_profile_list_head, desync_profile_list);
 struct desync_profile_list *dp_list_add(struct desync_profile_list_head *head);
 void dp_list_move(struct desync_profile_list_head *target, struct desync_profile_list *dpl);
-bool dp_list_copy(struct desync_profile *to, const struct desync_profile *from);
+bool dp_copy(struct desync_profile *to, const struct desync_profile *from);
 struct desync_profile_list *dp_list_search_name(struct desync_profile_list_head *head, const char *name);
 void dp_entry_destroy(struct desync_profile_list *entry);
 void dp_list_destroy(struct desync_profile_list_head *head);

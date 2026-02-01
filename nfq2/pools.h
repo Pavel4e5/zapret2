@@ -186,6 +186,7 @@ struct port_filter_item {
 };
 LIST_HEAD(port_filters_head, port_filter_item);
 bool port_filter_add(struct port_filters_head *head, const port_filter *pf);
+bool port_filters_copy(struct port_filters_head *to, const struct port_filters_head *from);
 void port_filters_destroy(struct port_filters_head *head);
 bool port_filters_match(const struct port_filters_head *head, uint16_t port);
 bool port_filters_deny_if_empty(struct port_filters_head *head);
@@ -196,6 +197,7 @@ struct icmp_filter_item {
 };
 LIST_HEAD(icmp_filters_head, icmp_filter_item);
 bool icmp_filter_add(struct icmp_filters_head *head, const icmp_filter *icf);
+bool icmp_filters_copy(struct icmp_filters_head *to, const struct icmp_filters_head *from);
 void icmp_filters_destroy(struct icmp_filters_head *head);
 bool icmp_filters_match(const struct icmp_filters_head *head, uint8_t type, uint8_t code);
 bool icmp_filters_deny_if_empty(struct icmp_filters_head *head);
@@ -206,6 +208,7 @@ struct ipp_filter_item {
 };
 LIST_HEAD(ipp_filters_head, ipp_filter_item);
 bool ipp_filter_add(struct ipp_filters_head *head, const ipp_filter *ipp);
+bool ipp_filters_copy(struct ipp_filters_head *to, const struct ipp_filters_head *from);
 void ipp_filters_destroy(struct ipp_filters_head *head);
 bool ipp_filters_match(const struct ipp_filters_head *head, uint8_t proto);
 bool ipp_filters_deny_if_empty(struct ipp_filters_head *head);

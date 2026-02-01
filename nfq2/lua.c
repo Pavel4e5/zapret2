@@ -651,7 +651,7 @@ static int luacall_hash(lua_State *L)
 
 static int luacall_aes(lua_State *L)
 {
-	// aes_gcm(bEncrypt, key, in) returns out
+	// aes(bEncrypt, key, in) returns out
 	lua_check_argc(L,"aes",3);
 
 	LUA_STACK_GUARD_ENTER(L)
@@ -3714,7 +3714,7 @@ static bool lua_file_open_test(const char *filename, bool *b_gzip, char *fname)
 		if (b_gzip) *b_gzip = is_gzip(F);
 		fclose(F);
 	}
-	return !!F;
+	return F;
 }
 
 bool lua_test_init_script_files(void)

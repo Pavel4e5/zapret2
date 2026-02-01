@@ -955,8 +955,6 @@ static uint8_t desync(
 			lua_pushf_ctrack(params.L, ctrack, tpos, bIncoming);
 			lua_pushf_int(params.L, "profile_n", dp->n);
 			if (dp->name) lua_pushf_str(params.L, "profile_name", dp->name);
-			if (dp->n_tpl) lua_pushf_int(params.L, "template_n", dp->n_tpl);
-			if (dp->name_tpl) lua_pushf_str(params.L, "template_name", dp->name_tpl);
 			if (dp->cookie) lua_pushf_str(params.L, "cookie", dp->cookie);
 			lua_pushf_bool(params.L, "outgoing", !bIncoming);
 			lua_pushf_str(params.L, "ifin", (ifin && *ifin) ? ifin : NULL);

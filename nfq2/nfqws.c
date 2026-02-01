@@ -1178,7 +1178,7 @@ bool lua_call_param_add(char *opt, struct str2_list_head *args)
 		*p = c;
 		if (!arg->str2) return false;
 	}
-	return !!arg->str1;
+	return arg->str1;
 }
 
 struct func_list *parse_lua_call(char *opt, struct func_list_head *flist)
@@ -1341,6 +1341,19 @@ static void LuaDesyncDebug(struct desync_profile *dp, const char *entity)
 			DLOG(")\n");
 		}
 	}
+}
+
+static bool deny_proto_filters(struct desync_profile *dp)
+{
+	// if any filter is set - deny all unset
+	if (!LIST_EMPTY(&dp->pf_tcp) || !LIST_EMPTY(&dp->pf_udp) || !LIST_EMPTY(&dp->icf) || !LIST_EMPTY(&dp->ipf))
+	{
+		return port_filters_deny_if_empty(&dp->pf_tcp) &&
+			port_filters_deny_if_empty(&dp->pf_udp) &&
+			icmp_filters_deny_if_empty(&dp->icf) &&
+			ipp_filters_deny_if_empty(&dp->ipf);
+	}
+	return true;
 }
 
 
@@ -2383,6 +2396,7 @@ int main(int argc, char **argv)
 				DLOG_ERR("auto hostlist fail threshold must be within 1..20\n");
 				exit_clean(1);
 			}
+			dp->b_hostlist_auto_fail_threshold = true;
 			break;
 		case IDX_HOSTLIST_AUTO_FAIL_TIME:
 			dp->hostlist_auto_fail_time = (uint8_t)atoi(optarg);
@@ -2391,6 +2405,7 @@ int main(int argc, char **argv)
 				DLOG_ERR("auto hostlist fail time is not valid\n");
 				exit_clean(1);
 			}
+			dp->b_hostlist_auto_fail_time = true;
 			break;
 		case IDX_HOSTLIST_AUTO_RETRANS_THRESHOLD:
 			dp->hostlist_auto_retrans_threshold = (uint8_t)atoi(optarg);
@@ -2399,21 +2414,27 @@ int main(int argc, char **argv)
 				DLOG_ERR("auto hostlist fail threshold must be within 2..10\n");
 				exit_clean(1);
 			}
+			dp->b_hostlist_auto_retrans_threshold = true;
 			break;
 		case IDX_HOSTLIST_AUTO_RETRANS_MAXSEQ:
 			dp->hostlist_auto_retrans_maxseq = (uint32_t)atoi(optarg);
+			dp->b_hostlist_auto_retrans_maxseq = true;
 			break;
 		case IDX_HOSTLIST_AUTO_INCOMING_MAXSEQ:
 			dp->hostlist_auto_incoming_maxseq = (uint32_t)atoi(optarg);
+			dp->b_hostlist_auto_incoming_maxseq = true;
 			break;
 		case IDX_HOSTLIST_AUTO_RETRANS_RESET:
 			dp->hostlist_auto_retrans_reset = !optarg || !!atoi(optarg);
+			dp->b_hostlist_auto_retrans_reset = true;
 			break;
 		case IDX_HOSTLIST_AUTO_UDP_OUT:
 			dp->hostlist_auto_udp_out = atoi(optarg);
+			dp->b_hostlist_auto_udp_out = true;
 			break;
 		case IDX_HOSTLIST_AUTO_UDP_IN:
 			dp->hostlist_auto_udp_in = atoi(optarg);
+			dp->b_hostlist_auto_udp_in = true;
 			break;
 		case IDX_HOSTLIST_AUTO_DEBUG:
 		{
@@ -2501,19 +2522,12 @@ int main(int argc, char **argv)
 					DLOG_ERR("template '%s' not found\n", optarg);
 					exit_clean(1);
 				}
-				if (!dp_list_copy(dp, &tpl->dp))
+				if (!dp_copy(dp, &tpl->dp))
 				{
 					DLOG_ERR("could not copy template\n");
 					exit_clean(1);
 				}
 				dp->n = desync_profile_count;
-				free(dp->name_tpl);
-				if (tpl->dp.name && !(dp->name_tpl = strdup(tpl->dp.name)))
-				{
-					DLOG_ERR("out of memory\n");
-					exit_clean(1);
-				}
-				dp->n_tpl = tpl->dp.n;
 			}
 			break;
 
@@ -2523,6 +2537,7 @@ int main(int argc, char **argv)
 				DLOG_ERR("bad value for --filter-l3\n");
 				exit_clean(1);
 			}
+			dp->b_filter_l3 = true;
 			break;
 		case IDX_FILTER_TCP:
 			if (!parse_pf_list(optarg, &dp->pf_tcp))
@@ -2530,11 +2545,6 @@ int main(int argc, char **argv)
 				DLOG_ERR("Invalid port filter : %s\n", optarg);
 				exit_clean(1);
 			}
-			// deny others if not set
-			if (!port_filters_deny_if_empty(&dp->pf_udp) ||
-				!icmp_filters_deny_if_empty(&dp->icf) ||
-				!ipp_filters_deny_if_empty(&dp->ipf))
-				exit_clean(1);
 			break;
 		case IDX_FILTER_UDP:
 			if (!parse_pf_list(optarg, &dp->pf_udp))
@@ -2542,11 +2552,6 @@ int main(int argc, char **argv)
 				DLOG_ERR("Invalid port filter : %s\n", optarg);
 				exit_clean(1);
 			}
-			// deny others if not set
-			if (!port_filters_deny_if_empty(&dp->pf_tcp) ||
-				!icmp_filters_deny_if_empty(&dp->icf) ||
-				!ipp_filters_deny_if_empty(&dp->ipf))
-				exit_clean(1);
 			break;
 		case IDX_FILTER_ICMP:
 			if (!parse_icf_list(optarg, &dp->icf))
@@ -2554,11 +2559,6 @@ int main(int argc, char **argv)
 				DLOG_ERR("Invalid icmp filter : %s\n", optarg);
 				exit_clean(1);
 			}
-			// deny others if not set
-			if (!port_filters_deny_if_empty(&dp->pf_tcp) ||
-				!port_filters_deny_if_empty(&dp->pf_udp) ||
-				!ipp_filters_deny_if_empty(&dp->ipf))
-				exit_clean(1);
 			break;
 		case IDX_FILTER_IPP:
 			if (!parse_ipp_list(optarg, &dp->ipf))
@@ -2566,11 +2566,6 @@ int main(int argc, char **argv)
 				DLOG_ERR("Invalid ip protocol filter : %s\n", optarg);
 				exit_clean(1);
 			}
-			// deny others if not set
-			if (!port_filters_deny_if_empty(&dp->pf_tcp) ||
-				!port_filters_deny_if_empty(&dp->pf_udp) ||
-				!icmp_filters_deny_if_empty(&dp->icf))
-				exit_clean(1);
 			break;
 		case IDX_FILTER_L7:
 			if (!parse_l7_list(optarg, &dp->filter_l7))
@@ -2578,6 +2573,7 @@ int main(int argc, char **argv)
 				DLOG_ERR("Invalid l7 filter : %s\n", optarg);
 				exit_clean(1);
 			}
+			dp->b_filter_l7 = true;
 			break;
 #ifdef HAS_FILTER_SSID
 		case IDX_FILTER_SSID:
@@ -2935,6 +2931,7 @@ int main(int argc, char **argv)
 				DLOG_ERR("could not make '%s' accessible. auto hostlist file may not be writable after privilege drop\n", dp->hostlist_auto->filename);
 
 		}
+		if (!deny_proto_filters(dp)) exit_clean(1);
 		LuaDesyncDebug(dp,"profile");
 	}
 	LIST_FOREACH(dpl, &params.desync_templates, next)

@@ -213,3 +213,4 @@ v0.8.1
 * winws2: --wf-raw-filter
 * nfqws2: conntrack_feed
 * winws2: use windivert bulk mode
+* nfqws2: template free import

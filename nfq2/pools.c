@@ -68,7 +68,7 @@ hostlist_pool *HostlistPoolGetStr(hostlist_pool *p, const char *s)
 }
 bool HostlistPoolCheckStr(hostlist_pool *p, const char *s)
 {
-	return !!HostlistPoolGetStr(p,s);
+	return HostlistPoolGetStr(p,s);
 }
 
 void HostlistPoolDestroy(hostlist_pool **pp)
@@ -539,7 +539,7 @@ static bool ipset_kavl_add(struct kavl_bit_elem **ipset, const void *a, uint8_t 
 
 bool ipset4Check(const struct kavl_bit_elem *ipset, const struct in_addr *a, uint8_t preflen)
 {
-	return !!kavl_bit_get(ipset,a,preflen);
+	return kavl_bit_get(ipset,a,preflen);
 }
 bool ipset4Add(struct kavl_bit_elem **ipset, const struct in_addr *a, uint8_t preflen)
 {
@@ -567,7 +567,7 @@ void ipset4Print(struct kavl_bit_elem *ipset)
 
 bool ipset6Check(const struct kavl_bit_elem *ipset, const struct in6_addr *a, uint8_t preflen)
 {
-	return !!kavl_bit_get(ipset,a,preflen);
+	return kavl_bit_get(ipset,a,preflen);
 }
 bool ipset6Add(struct kavl_bit_elem **ipset, const struct in6_addr *a, uint8_t preflen)
 {
@@ -723,15 +723,34 @@ bool ipset_collection_is_empty(const struct ipset_collection_head *head)
 }
 
 
-bool port_filter_add(struct port_filters_head *head, const port_filter *pf)
+static struct port_filter_item *port_filter_entry_alloc(const port_filter *pf)
 {
 	struct port_filter_item *entry = malloc(sizeof(struct port_filter_item));
-	if (entry)
-	{
-		entry->pf = *pf;
-		LIST_INSERT_HEAD(head, entry, next);
-	}
+	if (entry) entry->pf = *pf;
 	return entry;
+}
+bool port_filter_add(struct port_filters_head *head, const port_filter *pf)
+{
+	struct port_filter_item *entry = port_filter_entry_alloc(pf);
+	if (entry) LIST_INSERT_HEAD(head, entry, next);
+	return entry;
+}
+static struct port_filter_item *port_filter_entry_copy(const struct port_filter_item *pfi)
+{
+	return port_filter_entry_alloc(&pfi->pf);
+}
+bool port_filters_copy(struct port_filters_head *to, const struct port_filters_head *from)
+{
+	struct port_filter_item *tail, *item, *entry;
+
+	LIST_TAIL(to, tail, item);
+	LIST_FOREACH(item, from, next)
+	{
+		if (!(entry = port_filter_entry_copy(item))) return false;
+		LIST_INSERT_TAIL(to, tail, entry, next);
+		tail = tail ? LIST_NEXT(tail, next) : LIST_FIRST(to);
+	}
+	return true;
 }
 void port_filters_destroy(struct port_filters_head *head)
 {
@@ -762,15 +781,34 @@ bool port_filters_deny_if_empty(struct port_filters_head *head)
 }
 
 
-bool icmp_filter_add(struct icmp_filters_head *head, const icmp_filter *icf)
+static struct icmp_filter_item *icmp_filter_entry_alloc(const icmp_filter *icf)
 {
 	struct icmp_filter_item *entry = malloc(sizeof(struct icmp_filter_item));
-	if (entry)
-	{
-		entry->icf = *icf;
-		LIST_INSERT_HEAD(head, entry, next);
-	}
+	if (entry) entry->icf = *icf;
 	return entry;
+}
+bool icmp_filter_add(struct icmp_filters_head *head, const icmp_filter *icf)
+{
+	struct icmp_filter_item *entry = icmp_filter_entry_alloc(icf);
+	if (entry) LIST_INSERT_HEAD(head, entry, next);
+	return entry;
+}
+static struct icmp_filter_item *icmp_filter_entry_copy(const struct icmp_filter_item *ifi)
+{
+	return icmp_filter_entry_alloc(&ifi->icf);
+}
+bool icmp_filters_copy(struct icmp_filters_head *to, const struct icmp_filters_head *from)
+{
+	struct icmp_filter_item *tail, *item, *entry;
+
+	LIST_TAIL(to, tail, item);
+	LIST_FOREACH(item, from, next)
+	{
+		if (!(entry = icmp_filter_entry_copy(item))) return false;
+		LIST_INSERT_TAIL(to, tail, entry, next);
+		tail = tail ? LIST_NEXT(tail, next) : LIST_FIRST(to);
+	}
+	return true;
 }
 void icmp_filters_destroy(struct icmp_filters_head *head)
 {
@@ -801,15 +839,34 @@ bool icmp_filters_deny_if_empty(struct icmp_filters_head *head)
 }
 
 
-bool ipp_filter_add(struct ipp_filters_head *head, const ipp_filter *ipp)
+static struct ipp_filter_item *ipp_filter_entry_alloc(const ipp_filter *ipp)
 {
 	struct ipp_filter_item *entry = malloc(sizeof(struct ipp_filter_item));
-	if (entry)
-	{
-		entry->ipp = *ipp;
-		LIST_INSERT_HEAD(head, entry, next);
-	}
+	if (entry) entry->ipp = *ipp;
 	return entry;
+}
+bool ipp_filter_add(struct ipp_filters_head *head, const ipp_filter *ipp)
+{
+	struct ipp_filter_item *entry = ipp_filter_entry_alloc(ipp);
+	if (entry) LIST_INSERT_HEAD(head, entry, next);
+	return entry;
+}
+static struct ipp_filter_item *ipp_filter_entry_copy(const struct ipp_filter_item *ifi)
+{
+	return ipp_filter_entry_alloc(&ifi->ipp);
+}
+bool ipp_filters_copy(struct ipp_filters_head *to, const struct ipp_filters_head *from)
+{
+	struct ipp_filter_item *tail, *item, *entry;
+
+	LIST_TAIL(to, tail, item);
+	LIST_FOREACH(item, from, next)
+	{
+		if (!(entry = ipp_filter_entry_copy(item))) return false;
+		LIST_INSERT_TAIL(to, tail, entry, next);
+		tail = tail ? LIST_NEXT(tail, next) : LIST_FIRST(to);
+	}
+	return true;
 }
 void ipp_filters_destroy(struct ipp_filters_head *head)
 {

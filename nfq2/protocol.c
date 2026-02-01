@@ -316,7 +316,7 @@ bool HttpFindHost(uint8_t **pHost,uint8_t *buf,size_t bs)
 		*pHost = FindHostIn(buf, bs);
 		if (*pHost) (*pHost)++;
 	}
-	return !!*pHost;
+	return *pHost;
 }
 
 bool IsHttpReply(const uint8_t *data, size_t len)
@@ -1151,7 +1151,7 @@ static bool quic_derive_initial_secret(const quic_cid_t *cid, uint8_t *client_in
 }
 bool QUICIsLongHeader(const uint8_t *data, size_t len)
 {
-	return len>=9 && !!(*data & 0x80);
+	return len>=9 && (*data & 0x80);
 }
 uint32_t QUICExtractVersion(const uint8_t *data, size_t len)
 {

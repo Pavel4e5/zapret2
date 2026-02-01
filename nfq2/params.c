@@ -361,7 +361,6 @@ void dp_init(struct desync_profile *dp)
 static void dp_clear_dynamic(struct desync_profile *dp)
 {
 	free(dp->name);
-	free(dp->name_tpl);
 	free(dp->cookie);
 
 	hostlist_collection_destroy(&dp->hl_collection);
@@ -415,18 +414,39 @@ struct desync_profile_list *dp_list_add(struct desync_profile_list_head *head)
 
 	return entry;
 }
-bool dp_list_copy(struct desync_profile *to, const struct desync_profile *from)
+#define DP_COPY_SIMPLE(v) if (from->b_##v) to->v=from->v;
+bool dp_copy(struct desync_profile *to, const struct desync_profile *from)
 {
-	// clear everything in target
-	dp_clear(to);
-	// first copy all simple type values
-	*to = *from;
-	// prepare empty dynamic structures
-	dp_init_dynamic(to);
+	DP_COPY_SIMPLE(hostlist_auto_fail_threshold)
+	DP_COPY_SIMPLE(hostlist_auto_fail_time)
+	DP_COPY_SIMPLE(hostlist_auto_retrans_threshold)
+	DP_COPY_SIMPLE(hostlist_auto_retrans_maxseq)
+	DP_COPY_SIMPLE(hostlist_auto_incoming_maxseq)
+	DP_COPY_SIMPLE(hostlist_auto_retrans_reset)
+	DP_COPY_SIMPLE(hostlist_auto_udp_out)
+	DP_COPY_SIMPLE(hostlist_auto_udp_in)
+	DP_COPY_SIMPLE(filter_l7)
+	if (from->b_filter_l3)
+	{
+		to->filter_ipv4 = from->filter_ipv4;
+		to->filter_ipv6 = from->filter_ipv6;
+	}
+
 	// copy dynamic structures
-	if (from->name && !(to->name = strdup(from->name))) return false;
-	if (from->name_tpl && !(to->name_tpl = strdup(from->name_tpl))) return false;
-	if (from->cookie && !(to->cookie = strdup(from->cookie))) return false;
+	if (from->cookie)
+	{
+		free(to->cookie);
+		if (!(to->cookie = strdup(from->cookie))) return false;
+	}
+	if (from->hostlist_auto)
+	{
+		if (to->hostlist_auto)
+		{
+			DLOG_ERR("autohostlist replacement is not supported\n");
+			return false;
+		}
+		to->hostlist_auto = from->hostlist_auto;
+	}
 	if (
 #ifdef HAS_FILTER_SSID
 		!strlist_copy(&to->filter_ssid, &from->filter_ssid) ||
@@ -435,8 +455,13 @@ bool dp_list_copy(struct desync_profile *to, const struct desync_profile *from)
 		!ipset_collection_copy(&to->ips_collection, &from->ips_collection) ||
 		!ipset_collection_copy(&to->ips_collection_exclude, &from->ips_collection_exclude) ||
 		!hostlist_collection_copy(&to->hl_collection, &from->hl_collection) ||
-		!hostlist_collection_copy(&to->hl_collection_exclude, &from->hl_collection_exclude))
+		!hostlist_collection_copy(&to->hl_collection_exclude, &from->hl_collection_exclude) ||
+		!port_filters_copy(&to->pf_tcp, &from->pf_tcp) ||
+		!port_filters_copy(&to->pf_udp, &from->pf_udp) ||
+		!icmp_filters_copy(&to->icf, &from->icf) ||
+		!ipp_filters_copy(&to->ipf, &from->ipf))
 	{
+		DLOG_ERR("dynamic structure copy failed\n");
 		return false;
 	}
 	return true;
