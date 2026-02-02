@@ -1729,8 +1729,8 @@ desync.track всегда отсутствует.
 
 ## Базовые константы
 
-| Поле  | Тип      | Примечание |
-| :---- | :------- | :--------- |
+| Поле  | Тип      | Описание | Примечание |
+| :---- | :------- | :------- | :--------- |
 | qnum  | number | номер очереди NFQUEUE | только в Linux |
 | divert_port | number | номер порта divert | только в BSD |
 | desync_fwmark | number | fwmark для Linux, sockarg для BSD, 0 в Windows | |
