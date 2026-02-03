@@ -214,3 +214,7 @@ v0.8.1
 * nfqws2: conntrack_feed
 * winws2: use windivert bulk mode
 * nfqws2: template free import
+
+0.9.1
+
+* nfqws2: 'stat', 'clock_getfloattime' luacalls

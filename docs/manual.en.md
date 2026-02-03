@@ -75,6 +75,7 @@
       - [uname](#uname)
       - [clock\_gettime](#clock_gettime)
       - [getpid](#getpid)
+      - [stat](#stat)
     - [Packet handling options](#packet-handling-options)
       - [standard reconstruct](#standard-reconstruct)
       - [standard rawsend](#standard-rawsend)
@@ -1954,9 +1955,11 @@ On Windows, it returns a string starting with "CYGWIN" followed by the version.
 
 ```
 function clock_gettime()
+function clock_getfloattime()
 ```
 
-Retrieves the precise time. Returns two values: Unix time in seconds and the nanosecond component. The built-in `os.time()` function does not provide nanoseconds.
+clock_gettime retrieves the precise time. Returns two values: Unix time in seconds and the nanosecond component. The built-in `os.time()` function does not provide nanoseconds.
+clock_getfloattime returns unixtime in the floating point format. Nanoseconds go to the fractional part.
 
 #### getpid
 
@@ -1967,6 +1970,24 @@ function gettid()
 
 - `getpid()` returns the current process identifier (PID).
 - `gettid()` returns the current thread identifier (TID).
+
+#### stat
+
+```
+function stat(filename)
+```
+
+If successful returns the following table :
+
+| Field    | Type   | Description |
+| :------- | :----- | :---------- |
+| type     | string | file type : file, dir, symlink, socket, blockdev, chardev, fifo, unknown |
+| size     | number | file size |
+| mtime    | number | modification unixtime in floating point format |
+| inode    | number | inode. In Windows doesn't fit into number datatype in luajit but fits into integer datatype of Lua5.3+ |
+| dev      | number | device id |
+
+In case of error returns 3 values : nil, error string, error number (errno).
 
 ### Packet handling options
 

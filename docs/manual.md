@@ -72,6 +72,7 @@
       - [uname](#uname)
       - [clock\_gettime](#clock_gettime)
       - [getpid](#getpid)
+      - [stat](#stat)
     - [Опции по работе с пакетами](#опции-по-работе-с-пакетами)
       - [standard reconstruct](#standard-reconstruct)
       - [standard rawsend](#standard-rawsend)
@@ -2101,9 +2102,11 @@ function uname()
 
 ```
 function clock_gettime()
+function clock_getfloattime()
 ```
 
-Узнать точное время. Возвращает 2 значения - unixtime в секундах и наносекунды. Встроенная функция `os.time()` не выдает наносекунды.
+Узнать точное время. clock_gettime возвращает 2 значения - unixtime в секундах и наносекунды. Встроенная функция `os.time()` не выдает наносекунды.
+clock_getfloattime возвращает unixtime в формате с плавающей точкой. Наносекунды идут в дробную часть.
 
 #### getpid
 
@@ -2114,6 +2117,25 @@ function gettid()
 
 - getpid() возвращает идентификатор текущего процесса - PID
 - gettid() возвращает идентификатор текущего потока - TID
+
+#### stat
+
+```
+function stat(filename)
+```
+
+В случае успеха возвращает таблицу :
+
+| Поле     | Тип    | Описание    |
+| :------- | :----- | :---------- |
+| type     | string | тип файла : file, dir, symlink, socket, blockdev, chardev, fifo, unknown |
+| size     | number | размер файла |
+| mtime    | number | unixtime время модификации в формате с плавающей точкой |
+| inode    | number | inode. на Windows не влезает в тип number luajit, но влезает в integer Lua 5.3+ |
+| dev      | number | device id |
+
+В случае неудачи возвращает 3 результата : nil, строка ошибки, код ошибки errno.
+
 
 ### Опции по работе с пакетами
 
