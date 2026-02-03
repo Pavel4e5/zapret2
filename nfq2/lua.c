@@ -2305,7 +2305,7 @@ bool lua_reconstruct_icmphdr(lua_State *L, int idx, struct icmp46 *icmp)
 
 	lua_getfield(L,idx,"icmp_data");
 	if (lua_type(L,-1)!=LUA_TNUMBER) goto err;
-	icmp->icmp_data32 = htonl((uint32_t)lua_tointeger(L,-1));
+	icmp->icmp_data32 = htonl((uint32_t)lua_tolint(L,-1));
 	lua_pop(L, 1);
 
 	lua_getfield(L,idx,"icmp_cksum");
