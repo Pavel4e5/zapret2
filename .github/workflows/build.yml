@@ -391,7 +391,7 @@ jobs:
         with:
           platform: ${{ matrix.arch }}
           site: ${{ matrix.arch == 'x86_64' && 'http://ctm.crouchingtigerhiddenfruitbat.org/pub/cygwin/circa/64bit/2024/01/30/231215' || null }}
-          check-sig: false
+          check-sig: 'false'
           packages: >-
             gcc-core
             make
