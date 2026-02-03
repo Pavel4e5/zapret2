@@ -3568,6 +3568,36 @@ zerr:
 	goto end;
 }
 
+
+static int luacall_stat(lua_State *L)
+{
+	// stat(filename) return stat_table or nil,strerror,errno
+	lua_check_argc(L,"stat",1);
+
+	int n=1;
+	struct stat st;
+	if (stat(luaL_checkstring(L,1), &st))
+	{
+		lua_pushnil(L);
+		const char *err = strerror(errno);
+		if (err)
+		{
+			lua_pushstring(L,err);
+			lua_pushinteger(L,errno);
+			return 3;
+		}
+	}
+	else
+	{
+		lua_createtable(L, 0, 4);
+		lua_pushf_lint(L,"dev", st.st_dev);
+		lua_pushf_lint(L,"inode", st.st_ino);
+		lua_pushf_lint(L,"size", st.st_size);
+		lua_pushf_number(L,"mtime", st.st_mtim.tv_sec + st.st_mtim.tv_nsec/1000000000.);
+	}
+	return 1;
+}
+
 // ----------------------------------------
 
 void lua_cleanup(lua_State *L)
@@ -4209,7 +4239,10 @@ static void lua_init_functions(void)
 		// gzip compress
 		{"gzip_init",luacall_gzip_init},
 		{"gzip_end",luacall_gzip_end},
-		{"gzip_deflate",luacall_gzip_deflate}
+		{"gzip_deflate",luacall_gzip_deflate},
+
+		// stat() - file size, mod time
+		{"stat",luacall_stat}
 	};
 	for(int i=0;i<(sizeof(lfunc)/sizeof(*lfunc));i++)
 		lua_register(params.L,lfunc[i].name,lfunc[i].f);
