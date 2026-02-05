@@ -751,9 +751,11 @@ Table of recognizable payload types and flow protocols
 | tls             | tcp | tls_client_hello<br>tls_server_hello |
 | xmpp            | tcp | xmpp_stream<br>xmpp_starttls<br>xmpp_proceed<br>xmpp_features |
 | mtproto         | tcp | mtproto_initial |
+| utp_bt          | udp | utp_bt_handshake |
 | quic            | udp | quic_initial |
 | wireguard       | udp | wireguard_initiation<br>wireguard_response<br>wireguard_cookie<br>wireguard_keepalive |
 | dht             | udp | dht |
+| utp_bt          | udp | utp_bt_handshake |
 | discord         | udp | discord_ip_discovery |
 | stun            | udp | stun |
 | dns             | udp | dns_query dns_response |

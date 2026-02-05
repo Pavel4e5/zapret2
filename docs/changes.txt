@@ -221,3 +221,7 @@ v0.8.1
 * nfqws2: bcryptorandom normalize behavior when system entropy is low. prevent blocks
 * nfqws2: --new[=name]
 * winws2: fix not setting signal handlers
+
+0.9.2
+
+nfqws2: bt and utp_bt protocol detectors
