@@ -2017,7 +2017,7 @@ localtime and gmtime return dissected unixtime similar to C "struct tm". timeloc
 | yday     | number | day of year starting from 0 |
 | isdst*   | number | not zero if summer time in effect |
 | zone     | string | time zone |
-| str      | number | formatted string: "dd.mm.yyyy hh:mi:ss"  |
+| str      | string | formatted string: "dd.mm.yyyy hh:mi:ss"  |
 
 Fields marked with `*` are required for reverse translation.
 
