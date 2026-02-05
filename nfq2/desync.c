@@ -2030,7 +2030,7 @@ static uint8_t dpi_desync_ip_packet(
 	if (!!dis->ip == !!dis->ip6) return verdict;
 
 	struct sockaddr_storage src, dst;
-	const char *ssid;
+	const char *ssid = NULL;
 	struct desync_profile *dp;
 
 	extract_endpoints(dis->ip, dis->ip6, NULL, NULL, &src, &dst);
@@ -2129,6 +2129,8 @@ static uint8_t dpi_desync_packet_play(
 			verdict = dpi_desync_ip_packet(fwmark, ifin, ifout, &dis, mod_pkt, len_mod_pkt);
 		}
 	}
+	else
+		DLOG("invalid packet - neither ipv4 or ipv6\n");
 	return verdict;
 }
 uint8_t dpi_desync_packet(uint32_t fwmark, const char *ifin, const char *ifout, const uint8_t *data_pkt, size_t len_pkt, uint8_t *mod_pkt, size_t *len_mod_pkt)

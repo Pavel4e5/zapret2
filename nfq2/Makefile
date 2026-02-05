@@ -6,6 +6,7 @@ CFLAGS_LINUX = -Wno-alloc-size-larger-than
 CFLAGS_SYSTEMD = -DUSE_SYSTEMD
 CFLAGS_BSD = -Wno-address-of-packed-member
 CFLAGS_CYGWIN = -Wno-address-of-packed-member -static
+CFLAGS_UBSAN = -fsanitize=undefined,alignment -fno-sanitize-recover=undefined,alignment
 LDFLAGS_ANDROID = -llog
 LIBS =
 LIBS_LINUX = -lz -lnetfilter_queue -lnfnetlink -lmnl -lm
@@ -134,6 +135,9 @@ all: nfqws2
 
 nfqws2: $(SRC_FILES)
 	$(CC) -s $(CFLAGS) $(LUA_CFL) $(CFLAGS_LINUX) -o nfqws2 $(SRC_FILES) $(LIBS) $(LUA_LIB) $(LIBS_LINUX) $(LDFLAGS)
+
+ubsan: $(SRC_FILES)
+	$(CC) $(CFLAGS_UBSAN) $(CFLAGS) $(LUA_CFL) $(CFLAGS_LINUX) -o nfqws2 $(SRC_FILES) $(LIBS) $(LUA_LIB) $(LIBS_LINUX) $(LDFLAGS)
 
 systemd: $(SRC_FILES)
 	$(CC) -s $(CFLAGS) $(LUA_CFL) $(CFLAGS_LINUX) $(CFLAGS_SYSTEMD) -o nfqws2 $(SRC_FILES) $(LIBS) $(LUA_LIB) $(LIBS_LINUX) $(LIBS_SYSTEMD) $(LDFLAGS)

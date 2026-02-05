@@ -133,6 +133,7 @@ struct params_s
 	bool debug;
 
 	bool daemon, intercept;
+	unsigned int fuzz;
 
 #ifdef __linux__
 	int qnum;

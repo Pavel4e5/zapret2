@@ -156,6 +156,37 @@ static uint8_t processPacketData(uint32_t *mark, const char *ifin, const char *i
 	return dpi_desync_packet(*mark, ifin, ifout, data_pkt, len_pkt, mod_pkt, len_mod_pkt);
 }
 
+static void fuzzPacketData(unsigned int count)
+{
+	uint8_t packet[RECONSTRUCT_MAX_SIZE],mod[RECONSTRUCT_MAX_SIZE];
+	size_t len, modlen;
+	unsigned int k;
+	uint32_t mark=0;
+	uint8_t verdict;
+
+	for(k=0;k<count;k++)
+	{
+		if (bQuit) break;
+		if (!(k%1000)) DLOG_CONDUP("fuzz ct=%u\n",k);
+		len = random()%sizeof(packet);
+		fill_random_bytes(packet,len);
+		if (len)
+		{
+			// simulate ipv4 or ipv6 and invalid packet with low probability
+			*packet = *packet ? (*packet & 1) ? 0x40 : 0x60 | (*packet & 0x0F) : (uint8_t)random();
+		}
+		modlen = sizeof(mod);
+		verdict = processPacketData(&mark,random()%1 ? "ifin" : NULL,random()%1 ? "ifout" : NULL,packet,len,mod,&modlen);
+	}
+}
+static void do_fuzz(void)
+{
+	if (params.fuzz)
+	{
+		DLOG_CONDUP("fuzz packet data count=%u\n",params.fuzz);
+		fuzzPacketData(params.fuzz);
+	}
+}
 
 static bool test_list_files()
 {
@@ -381,9 +412,11 @@ static int nfq_main(void)
 	if (!lua_init())
 		goto err;
 
+	do_fuzz();
+
 	if (!params.intercept)
 	{
-		DLOG("no intercept quit\n");
+		DLOG_CONDUP("no intercept quit\n");
 		goto exok;
 	}
 
@@ -547,6 +580,8 @@ static int dvt_main(void)
 
 	if (!lua_init())
 		goto exiterr;
+
+	do_fuzz();
 
 	if (!params.intercept)
 	{
@@ -736,6 +771,8 @@ static int win_main()
 		{
 			res=ERROR_INVALID_PARAMETER; goto ex;
 		}
+
+		do_fuzz();
 
 		if (!params.intercept)
 		{
@@ -1783,6 +1820,7 @@ enum opt_indices {
 	IDX_DEBUG,
 	IDX_DRY_RUN,
 	IDX_INTERCEPT,
+	IDX_FUZZ,
 	IDX_VERSION,
 	IDX_COMMENT,
 #ifdef __linux__
@@ -1886,6 +1924,7 @@ static const struct option long_options[] = {
 	[IDX_DEBUG] = {"debug", optional_argument, 0, 0},
 	[IDX_DRY_RUN] = {"dry-run", no_argument, 0, 0},
 	[IDX_INTERCEPT] = {"intercept", optional_argument, 0, 0},
+	[IDX_FUZZ] = {"fuzz", required_argument, 0, 0},
 	[IDX_VERSION] = {"version", no_argument, 0, 0},
 	[IDX_COMMENT] = {"comment", optional_argument, 0, 0},
 #ifdef __linux__
@@ -2160,6 +2199,10 @@ int main(int argc, char **argv)
 			break;
 		case IDX_INTERCEPT:
 			params.intercept = !optarg || atoi(optarg);
+			break;
+		case IDX_FUZZ:
+			params.fuzz = atoi(optarg);
+			params.intercept = false;
 			break;
 		case IDX_VERSION:
 			exit_clean(0);
