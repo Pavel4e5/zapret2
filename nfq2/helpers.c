@@ -456,11 +456,14 @@ bool file_open_test(const char *filename, int flags)
 void fill_random_bytes(uint8_t *p,size_t sz)
 {
 	size_t k;
-	// alignment
-	if ((size_t)p & 1) { *p=(uint8_t)random(); sz--; p++; }
-	// random has only 31 bits of entropy. not 32 bits
-	for (k=0 ; (k+1)<sz ; k+=2) *(uint16_t*)(p+k) = (uint16_t)random();
-	if (sz & 1) p[sz-1]=(uint8_t)random();
+	if (sz)
+	{
+		// alignment
+		if ((size_t)p & 1) { *p=(uint8_t)random(); sz--; p++; }
+		// random has only 31 bits of entropy. not 32 bits
+		for (k=0 ; (k+1)<sz ; k+=2) *(uint16_t*)(p+k) = (uint16_t)random();
+		if (sz & 1) p[sz-1]=(uint8_t)random();
+	}
 }
 void fill_random_az(uint8_t *p,size_t sz)
 {
