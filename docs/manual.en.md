@@ -1390,6 +1390,7 @@ All multi-byte numeric values are automatically converted from network byte orde
 | :------------ | :----- | :--------------------------------------------------------------- |
 | ip            | table  | IPv4 header                                                      |
 | ip6           | table  | IPv6 header                                                      |
+| frag_off      | number | IP fragment offset. present only if IP is fragmented.            |
 | tcp           | table  | TCP header                                                       |
 | udp           | table  | UDP header                                                       |
 | icmp          | table  | ICMP header                                                      |
@@ -2100,8 +2101,8 @@ function reconstruct_dissect(dissect[, reconstruct_opts])
 
 Returns `raw_ip`. All checksums are calculated automatically. L4 checksums are intentionally corrupted if `badsum` is specified in `reconstruct_opts`.
 
-Reconstructing dissects with IP fragmentation involves a specific interaction between Lua and C code.
-The Lua code must prepare a dissect of the full packet intended for fragmentation, but fill certain fields as they should appear in the fragment:
+1. if the "frag_off" field is present, tcp/udp/icmp headers are ignored, payload contains raw ip payload. Incoming fragmented packets come in this form. nfqws2 does not defragment at the IP layer. But this is very persistently done by Linux systems - in order for a fragment to come to nfqws2, you need to try hard by inserting "notrack" into prerouting or output. Dissects in this form can be reconstructed as is. But preparing them in Lua is extremely inconvenient, since you will have to go through the black magic of working with a binary representation.
+2. If the "frag_off" field is absent, fragment reconstruction is performed on the entire packet dissect involving both Lua and C code. Lua code must prepare a dissect of the full packet intended for fragmentation, but fill certain fields as they should appear in the fragment:
 
 - **ipv4**: `ip.ip_len` must be calculated as it should appear in the fragment.
 The C code uses `ip.ip_len` to determine the size of the fragmented portion.
