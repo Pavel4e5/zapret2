@@ -2104,7 +2104,7 @@ Returns `raw_ip`. All checksums are calculated automatically. L4 checksums are i
 Reconstruction of fragmented IP packets involves special magic.
 
 1. if the "frag_off" field is present, tcp/udp/icmp headers are ignored, payload contains raw ip payload. Incoming fragmented packets come in this form. nfqws2 does not defragment at the IP layer. But this is very persistently done by Linux systems - in order for a fragment to come to nfqws2, you need to try hard by inserting "notrack" into prerouting or output. Dissects in this form can be reconstructed as is. But preparing them in Lua is extremely inconvenient, since you will have to go through the black magic of working with a binary representation.
-2. If the "frag_off" field is absent, fragment reconstruction is performed on the entire packet dissect involving both Lua and C code. Lua code must prepare a dissect of the full packet intended for fragmentation, but fill certain fields as they should appear in the fragment:
+2. If the "frag_off" field is absent, fragment reconstruction is performed on the entire packet's dissect involving both Lua and C code. Lua code must prepare a dissect of the full packet intended for fragmentation, but fill certain fields as they should appear in the fragment:
 
 - **ipv4**: `ip.ip_len` must be calculated as it should appear in the fragment.
 The C code uses `ip.ip_len` to determine the size of the fragmented portion.
