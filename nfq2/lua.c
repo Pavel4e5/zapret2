@@ -2445,7 +2445,11 @@ bool lua_reconstruct_dissect(lua_State *L, int idx, uint8_t *buf, size_t *len, b
 				DLOG_ERR("reconstruct_dissect: invalid payload length\n");
 				goto err;
 			}
-			if (left<lpayload) goto err;
+			if (left<lpayload)
+			{
+				DLOG_ERR("reconstruct_dissect: payload does not fit into the buffer : payload %zu buffer_left %zu\n",lpayload,left);
+				goto err;
+			}
 			memcpy(data,p,lpayload);
 			data+=lpayload; left-=lpayload;
 		}
@@ -2510,7 +2514,11 @@ bool lua_reconstruct_dissect(lua_State *L, int idx, uint8_t *buf, size_t *len, b
 				DLOG_ERR("reconstruct_dissect: invalid payload length\n");
 				goto err;
 			}
-			if (left<lpayload) goto err;
+			if (left<lpayload)
+			{
+				DLOG_ERR("reconstruct_dissect: payload does not fit into the buffer : payload %zu buffer_left %zu\n",lpayload,left);
+				goto err;
+			}
 			memcpy(data,p,lpayload);
 			data+=lpayload; left-=lpayload;
 		}
