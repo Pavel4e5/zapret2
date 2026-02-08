@@ -321,22 +321,24 @@ end
 
 -- convert array a to packed string using 'packer' function. only numeric indexes starting from 1, order preserved
 function barray(a, packer)
+	local sa={}
 	if a then
 		local s=""
 		for i=1,#a do
-			s = s .. packer(a[i])
+			sa[i] = packer(a[i])
 		end
-		return s
+		return table.concat(sa)
 	end
 end
 -- convert table a to packed string using 'packer' function. any indexes, any order
 function btable(a, packer)
+	local sa={}
 	if a then
 		local s=""
 		for k,v in pairs(a) do
-			s = s .. packer(v)
+			sa[k] = packer(v)
 		end
-		return s
+		return table.concat(sa)
 	end
 end
 
