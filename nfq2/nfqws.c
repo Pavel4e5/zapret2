@@ -455,7 +455,6 @@ static int nfq_main(void)
 	{
 		while ((rd = recv(fd, buf, RECONSTRUCT_MAX_SIZE, 0)) >= 0)
 		{
-			if (bQuit) goto quit;
 			ReloadCheck();
 			lua_do_gc();
 #ifdef HAS_FILTER_SSID
@@ -473,6 +472,7 @@ static int nfq_main(void)
 				DLOG_ERR("recv from nfq returned 0 !\n");
 				goto err;
 			}
+			if (bQuit) goto quit;
 		}
 		if (errno==EINTR)
 		{
@@ -483,6 +483,7 @@ static int nfq_main(void)
 		DLOG_ERR("recv: recv=%zd errno %d\n", rd, e);
 		errno = e;
 		DLOG_PERROR("recv");
+		if (bQuit) goto quit;
 		// do not fail on ENOBUFS
 	} while (e == ENOBUFS);
 
@@ -606,6 +607,11 @@ static int dvt_main(void)
 
 	for (;;)
 	{
+		if (bQuit)
+		{
+			DLOG_CONDUP("quit requested\n");
+			goto exitok;
+		}
 		FD_ZERO(&fdset);
 		for (i = 0; i < fdct; i++) FD_SET(fd[i], &fdset);
 		r = select(fdmax, &fdset, NULL, NULL, NULL);
