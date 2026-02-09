@@ -409,6 +409,29 @@ end
 function cond_tcp_has_ts(desync)
 	return desync.dis.tcp and find_tcp_option(desync.dis.tcp.options, TCP_KIND_TS)
 end
+-- exec lua code in "code" arg and return it's result
+function cond_lua(desync)
+	if not desync.arg.code then
+		error("cond_lua: no 'code' parameter")
+	end
+	local fname = desync.func_instance.."_cond_code"
+	if not _G[fname] then
+		local err
+		_G[fname], err = load(desync.arg.code, fname)
+		if not _G[fname] then
+			error(err)
+			return
+		end
+	end
+	-- allow dynamic code to access desync
+	_G.desync = desync
+	local res, v = pcall(_G[fname])
+	_G.desync = nil
+	if not res then
+		error(v);
+	end
+	return v
+end
 
 -- check iff function available. error if not
 function require_iff(desync, name)
@@ -423,26 +446,33 @@ end
 -- for example, this can be used by custom protocol detectors
 -- arg: iff - condition function. takes desync as arg and returns bool. (cant use 'if' because of reserved word)
 -- arg: neg - invert condition function result
+-- arg: instances - how many instances execute conditionally. all if not defined
 -- test case : --lua-desync=condition:iff=cond_random --lua-desync=argdebug:testarg=1 --lua-desync=argdebug:testarg=2:morearg=xyz
 function condition(ctx, desync)
 	require_iff(desync, "condition")
 	orchestrate(ctx, desync)
 	if logical_xor(_G[desync.arg.iff](desync), desync.arg.neg) then
 		DLOG("condition: true")
-		return replay_execution_plan(desync)
 	else
 		DLOG("condition: false")
-		plan_clear(desync)
+		plan_clear(desync, tonumber(desync.arg.instances))
+		if #desync.plan>0 then
+			DLOG("condition: executing remaining "..#desync.plan.." instance(s)")
+		end
 	end
+	return replay_execution_plan(desync)
 end
 -- execute further desync instances.
 -- each instance may have "cond" and "cond_neg" args.
 -- "cond" - condition function.  "neg" - invert condition function result
+-- arg: instances - how many instances execute conditionally. all if not defined
 function per_instance_condition(ctx, desync)
 	orchestrate(ctx, desync)
 
 	local verdict = VERDICT_PASS
-	while true do
+	local n = 0
+	local max = tonumber(desync.arg.instances)
+	while not max or n<max do
 		local instance = plan_instance_pop(desync)
 		if not instance then break end
 		if instance.arg.cond then
@@ -457,8 +487,12 @@ function per_instance_condition(ctx, desync)
 		else
 			DLOG("per_instance_condition: no 'cond' arg in '"..instance.func_instance.."'. skipping")
 		end
+		n = n + 1
 	end
-	return verdict
+	if #desync.plan>0 then
+		DLOG("per_instance_condition: executing remaining "..#desync.plan.." instance(s) unconditionally")
+	end
+	return verdict_aggregate(verdict, replay_execution_plan(desync))
 end
 
 -- clear execution plan if user provided 'iff' functions returns true

@@ -226,6 +226,7 @@
       - [cond_random](#cond_random)
       - [cond_payload_str](#cond_payload_str)
       - [cond_tcp_has_ts](#cond_tcp_has_ts)
+      - [cond_lua](#cond_lua)
 - [Auxiliary programs](#auxiliary-programs)
   - [ip2net](#ip2net)
   - [mdig](#mdig)
@@ -3568,10 +3569,10 @@ Retrieves, removes, and returns the first element of the [execution plan](#execu
 ### plan_clear
 
 ```
-function plan_clear(desync)
+function plan_clear(desync, max)
 ```
 
-Clears the [execution plan](#execution_plan) in `desync.plan` by removing all `instance` elements.
+Clears up to the "max" instances if "max" is defined or the whole [execution plan](#execution_plan) in `desync.plan`.
 
 ### orchestrate
 
@@ -3585,10 +3586,10 @@ If `ctx=nil`, it does nothing, assuming the plan is already in `desync.plan`.
 ### replay_execution_plan
 
 ```
-function replay_execution_plan(desync)
+function replay_execution_plan(desync, max)
 ```
 
-Executes the entire [execution plan](#execution_plan) from `desync.plan`, respecting the [instance cutoff](#instance_cutoff) and standard [payload](#in-profile-filters) and [range](#in-profile-filters) filters.
+Executes up to the "max" instances if "max" is defined, or the entire [execution plan](#execution_plan) from `desync.plan`, respecting the [instance cutoff](#instance_cutoff) and standard [payload](#in-profile-filters) and [range](#in-profile-filters) filters.
 
 # zapret-antidpi.lua DPI attack program library
 
@@ -4386,6 +4387,7 @@ function condition(ctx, desync)
 
 - arg: `iff` - name of the [iff function](#iff-functions)
 - arg: `neg` - invert the `iff` value; defaults to `false`
+- arg: `instances` - how many following instances to execute conditionally. all if not defined.
 
 `condition` calls `iff`. If `iff xor neg = true`, all instances in the `plan` are executed; otherwise, the plan is cleared.
 
@@ -4395,6 +4397,8 @@ function condition(ctx, desync)
 function per_instance_condition(ctx, desync)
 ```
 
+- arg: `instances` - how many following instances to execute conditionally. all if not defined.
+
 All following instanced are called only if they have "cond" argument with the "iff" function name and it returns true. The "cond_neg" argument inverts "cond" result.
 Names are not iff/neg to avoid conflict with other orchestrators.
 
@@ -4402,7 +4406,7 @@ Names are not iff/neg to avoid conflict with other orchestrators.
 ### stopif
 
 ```
-function condition(ctx, desync)
+function stopif(ctx, desync)
 ```
 
 - arg: `iff` - name of the [iff function](#iff-functions)
@@ -4461,6 +4465,14 @@ function cond_tcp_ts(desync)
 ```
 
 Returns `true` if the dissect is tcp and has tcp timestamp option.
+
+#### cond_lua
+
+```
+function cond_lua(desync)
+```
+
+Executes a Lua code from the "code" argument. The code returns condition value. Direct addressing of the desync table is possible within the code.
 
 
 # Auxiliary programs

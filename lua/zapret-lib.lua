@@ -209,8 +209,13 @@ end
 function plan_instance_pop(desync)
 	return (desync.plan and #desync.plan>0) and table.remove(desync.plan, 1) or nil
 end
-function plan_clear(desync)
-	while table.remove(desync.plan) do end
+function plan_clear(desync, max)
+	if max then
+		local n=0
+		while n<max and table.remove(desync.plan,1) do n=n+1 end
+	else
+		while table.remove(desync.plan) do end
+	end
 end
 -- this approach allows nested orchestrators
 function orchestrate(ctx, desync)
@@ -233,12 +238,17 @@ function desync_copy(desync)
 	return dcopy
 end
 -- redo what whould be done without orchestration
-function replay_execution_plan(desync)
+function replay_execution_plan(desync, max)
 	local verdict = VERDICT_PASS
-	while true do
+	local n=0
+	while not max or n<max do
 		local instance = plan_instance_pop(desync)
 		if not instance then break end
 		verdict = plan_instance_execute(desync, verdict, instance)
+		n = n + 1
+	end
+	if max and n>=max then
+		DLOG("replay_execution_plan: reached max instances limit "..max)
 	end
 	return verdict
 end

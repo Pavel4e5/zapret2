@@ -233,3 +233,6 @@ winws2: fixed lost windivert deinit on logical network disappear
 
 nfqws2: handling of incoming fragmented packets (no reconstruct, raw ip payload)
 zapret-auto: per_instance_condition orchestrator
+zapret-auto: "instances" argument in condition orchestrator
+zapret-auto: cond_tcp_has_ts, cond_lua iff functions
+zapret-lib: replay_execution_plan and plan_clear max parameter
