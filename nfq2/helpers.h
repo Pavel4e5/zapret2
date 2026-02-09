@@ -33,6 +33,8 @@ const char *strncasestr(const char *s,const char *find, size_t slen);
 // [a-zA-z][a-zA-Z0-9]*
 bool is_identifier(const char *p);
 
+ssize_t read_intr(int fd, void *buf, size_t count);
+
 bool load_file(const char *filename, off_t offset, void *buffer, size_t *buffer_size);
 bool save_file(const char *filename, const void *buffer, size_t buffer_size);
 bool append_to_list_file(const char *filename, const char *s);

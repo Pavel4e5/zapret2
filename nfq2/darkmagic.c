@@ -358,9 +358,9 @@ void str_icmphdr(char *s, size_t s_len, bool v6, const struct icmp46 *icmp)
 	char stype[32];
 	str_icmp_type_name(stype,sizeof(stype),v6,icmp->icmp_type);
 	if (icmp->icmp_type==ICMP_ECHO || icmp->icmp_type==ICMP_ECHOREPLY || icmp->icmp_type==ICMP6_ECHO_REQUEST || icmp->icmp_type==ICMP6_ECHO_REPLY)
-		snprintf(s,s_len,"icmp_type=%s icmp_code=%u id=0x%04X seq=%u",stype,icmp->icmp_code,ntohs(icmp->icmp_data16[0]),ntohs(icmp->icmp_data16[1]));
+		snprintf(s,s_len,"icmp_type=%s icmp_code=%u id=0x%04X seq=%u",stype,icmp->icmp_code,ntohs(icmp->data.data16[0]),ntohs(icmp->data.data16[1]));
 	else
-		snprintf(s,s_len,"icmp_type=%s icmp_code=%u data=0x%08X",stype,icmp->icmp_code,ntohl(icmp->icmp_data32));
+		snprintf(s,s_len,"icmp_type=%s icmp_code=%u data=0x%08X",stype,icmp->icmp_code,ntohl(icmp->data.data32));
 }
 void print_icmphdr(const struct icmp46 *icmp, bool v6)
 {

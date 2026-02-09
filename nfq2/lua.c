@@ -1422,7 +1422,7 @@ void lua_push_icmphdr(lua_State *L, const struct icmp46 *icmp, size_t len)
 		lua_pushf_int(L,"icmp_type",icmp->icmp_type);
 		lua_pushf_int(L,"icmp_code",icmp->icmp_code);
 		lua_pushf_int(L,"icmp_cksum",ntohs(icmp->icmp_cksum));
-		lua_pushf_lint(L,"icmp_data",ntohl(icmp->icmp_data32));
+		lua_pushf_lint(L,"icmp_data",ntohl(icmp->data.data32));
 	}
 	else
 		lua_pushnil(L);
@@ -2318,7 +2318,7 @@ bool lua_reconstruct_icmphdr(lua_State *L, int idx, struct icmp46 *icmp)
 
 	lua_getfield(L,idx,"icmp_data");
 	if (lua_type(L,-1)!=LUA_TNUMBER) goto err;
-	icmp->icmp_data32 = htonl((uint32_t)lua_tolint(L,-1));
+	icmp->data.data32 = htonl((uint32_t)lua_tolint(L,-1));
 	lua_pop(L, 1);
 
 	lua_getfield(L,idx,"icmp_cksum");
@@ -3511,7 +3511,7 @@ static void *z_alloc(voidpf opaque, uInt items, uInt size)
 }
 static void z_free(voidpf opaque, voidpf address)
 {
-	return free(address);
+	free(address);
 }
 static int luacall_gzip_init(lua_State *L)
 {

@@ -165,7 +165,7 @@ void expand_bits(void *target, const void *source, unsigned int source_bitlen, u
 	unsigned int bitlen = target_bitlen<source_bitlen ? target_bitlen : source_bitlen;
 	unsigned int bytelen = bitlen>>3;
 
-	if ((target_bytelen-bytelen)>=1) memset(target+bytelen,0,target_bytelen-bytelen);
+	if ((target_bytelen-bytelen)>=1) memset((uint8_t*)target+bytelen,0,target_bytelen-bytelen);
 	memcpy(target,source,bytelen);
 	if ((bitlen &= 7)) ((uint8_t*)target)[bytelen] = ((uint8_t*)source)[bytelen] & (~((1 << (8-bitlen)) - 1));
 }
@@ -504,6 +504,14 @@ int getentropy(void *buf, size_t len)
 }
 #endif
 
+
+ssize_t read_intr(int fd, void *buf, size_t count)
+{
+	ssize_t rd;
+	while ((rd=read(fd,buf,count))<0 && errno==EINTR);
+	return rd;
+}
+
 bool fill_crypto_random_bytes(uint8_t *p,size_t sz)
 {
 	ssize_t rd;
@@ -526,7 +534,7 @@ bool fill_crypto_random_bytes(uint8_t *p,size_t sz)
 		{
 			do
 			{
-				if ((rd=read(fd,p,sz))>0)
+				if ((rd=read_intr(fd,p,sz))>0)
 				{
 					p+=rd; sz-=rd;
 				}
@@ -537,7 +545,7 @@ bool fill_crypto_random_bytes(uint8_t *p,size_t sz)
 		{
 			do
 			{
-				if ((rd=read(fd,p,sz))>0)
+				if ((rd=read_intr(fd,p,sz))>0)
 				{
 					p+=rd; sz-=rd;
 				}

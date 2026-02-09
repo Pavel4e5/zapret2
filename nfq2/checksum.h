@@ -19,10 +19,10 @@ struct icmp46
 	uint16_t icmp_cksum;
 	union
 	{
-		uint32_t icmp_data32;
-		uint16_t icmp_data16[2];
-		uint8_t icmp_data8[4];
-	};
+		uint32_t data32;
+		uint16_t data16[2];
+		uint8_t data8[4];
+	} data;
 };
 
 uint16_t csum_tcpudp_magic(uint32_t saddr, uint32_t daddr, size_t len, uint8_t proto, uint16_t sum);
