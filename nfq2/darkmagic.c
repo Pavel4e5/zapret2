@@ -1769,6 +1769,7 @@ static int rawsend_sendto_divert(sa_family_t family, int sock, const void *buf, 
 {
 	struct sockaddr_storage sa;
 	socklen_t slen;
+	ssize_t wr;
 
 #ifdef __FreeBSD__
 	// since FreeBSD 14 it requires hardcoded ipv4 values, although can also send ipv6 frames
@@ -1790,7 +1791,16 @@ static int rawsend_sendto_divert(sa_family_t family, int sock, const void *buf, 
 #endif
 	memset(&sa,0,slen);
 	sa.ss_family = family;
-	return sendto(sock, buf, len, 0, (struct sockaddr*)&sa, slen);
+	while ((wr=sendto(sock, buf, len, 0, (struct sockaddr*)&sa, slen))<0 && errno==EINTR);
+	if (wr<0)
+	{
+		char s[64];
+		snprintf(s,sizeof(s),"rawsend_sendto_divert: sendto (%zu)",len);
+		DLOG_PERROR(s);
+		return false;
+	}
+
+	return wr;
 }
 #endif
 
@@ -1922,47 +1932,32 @@ bool rawsend(const struct sockaddr* dst,uint32_t fwmark,const char *ifout,const 
 #else
 
 #ifdef __linux__
-	struct sockaddr_storage sa_src;
 	switch(dst->sa_family)
 	{
 		case AF_INET:
 			if (!b_bind_fix4) goto nofix;
-			extract_endpoints(data,NULL,NULL,NULL, &sa_src, NULL);
 			break;
 		case AF_INET6:
 			if (!b_bind_fix6) goto nofix;
-			extract_endpoints(NULL,data,NULL,NULL, &sa_src, NULL);
 			break;
 		default:
 			return false; // should not happen
 	}
-	//printf("family %u dev %s bind : ",  dst->sa_family, ifout); print_sockaddr((struct sockaddr *)&sa_src); printf("\n");
+
+	// force outgoing interface for raw packets. linux may choose it wrong if ip rules exist
 	if (setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE, ifout, ifout ? strlen(ifout)+1 : 0) == -1)
 	{
 		DLOG_PERROR("rawsend: setsockopt(SO_BINDTODEVICE)");
 		return false;
 	}
-	if (bind(sock, (const struct sockaddr*)&sa_src, dst->sa_family==AF_INET ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6)))
-	{
-		DLOG_PERROR("rawsend: bind (ignoring)");
-		// do not fail. this can happen regardless of IP_FREEBIND
-		// rebind to any address
-		memset(&sa_src,0,sizeof(sa_src));
-		sa_src.ss_family = dst->sa_family;
-		if (bind(sock, (const struct sockaddr*)&sa_src, dst->sa_family==AF_INET ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6)))
-		{
-			DLOG_PERROR("rawsend: bind to any");
-			return false;
-		}
-	}
 nofix:
 #endif
 
 	// normal raw socket sendto
-	bytes = sendto(sock, data, len, 0, (struct sockaddr*)&dst2, salen);
-	if (bytes==-1)
+	while ((bytes = sendto(sock, data, len, 0, (struct sockaddr*)&dst2, salen))<0 && errno==EINTR);
+	if (bytes<0)
 	{
-		char s[40];
+		char s[64];
 		snprintf(s,sizeof(s),"rawsend: sendto (%zu)",len);
 		DLOG_PERROR(s);
 		return false;
