@@ -13,7 +13,7 @@ setup-x86_64.exe --allow-unsupported-windows --no-verify --site http://ctm.crouc
 
 download latest releast, unpack, cd to it's directory
 
-make BUILDMODE=static CFLAGS="-Os"
+make BUILDMODE=static CFLAGS="-Os -DLUAJIT_DISABLE_FFI -ffat-lto-objects -flto=auto -ffunction-sections -fdata-sections -fvisibility=hidden"
 make install
 
 5) cd to %ZAPRET_BASE%/nfq2

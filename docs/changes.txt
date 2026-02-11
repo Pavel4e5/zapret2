@@ -224,17 +224,17 @@ v0.8.1
 
 0.9.2
 
-nfqws2: bt and utp_bt protocol detectors
-nfqws2: localtime,gmtime,timelocal,timegm luacalls
-winws2: load wlanapi.dll dynamically only if needed
-winws2: fixed lost windivert deinit on logical network disappear
+* nfqws2: bt and utp_bt protocol detectors
+* nfqws2: localtime,gmtime,timelocal,timegm luacalls
+* winws2: load wlanapi.dll dynamically only if needed
+* winws2: fixed lost windivert deinit on logical network disappear
 
 0.9.3
 
-nfqws2: handling of incoming fragmented packets (no reconstruct, raw ip payload)
-zapret-auto: per_instance_condition orchestrator
-zapret-auto: "instances" argument in condition orchestrator
-zapret-auto: cond_tcp_has_ts, cond_lua iff functions
-zapret-lib: replay_execution_plan and plan_clear max parameter
-init.d: use bitmap:port ipset for standard dports
-github: reduce executables files size
+* nfqws2: handling of incoming fragmented packets (no reconstruct, raw ip payload)
+* zapret-auto: per_instance_condition orchestrator
+* zapret-auto: "instances" argument in condition orchestrator
+* zapret-auto: cond_tcp_has_ts, cond_lua iff functions
+* zapret-lib: replay_execution_plan and plan_clear max parameter
+* init.d: use bitmap:port ipset for standard dports
+* github: reduce executables files size
