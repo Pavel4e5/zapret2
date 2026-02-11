@@ -90,10 +90,9 @@ function test_hkdf()
 			local ikm = brandom(math.random(5,10))
 			for ninfo=1,nblob do
 				local info = brandom(math.random(5,10))
-				local okm_prev
 				for k,sha in pairs({"sha256","sha224"}) do
-					for k,okml in pairs({8, 16, 50}) do
 					local okm_prev
+					for k,okml in pairs({8, 16, 50}) do
 						local okm
 						print("* hkdf "..sha)
 						print("salt: "..string2hex(salt))
@@ -107,7 +106,6 @@ function test_hkdf()
 							print("duplicate okm !")
 						end
 						okms[okm] = true
-
 						test_assert(not okm_prev or okm_prev==string.sub(okm, 1, #okm_prev))
 						okm_prev = okm
 					end

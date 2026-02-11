@@ -477,7 +477,7 @@ function per_instance_condition(ctx, desync)
 		if not instance then break end
 		if instance.arg.cond then
 			if type(_G[instance.arg.cond])~="function" then
-				error(name..": invalid 'iff' function '"..instance.arg.cond.."'")
+				error("per_instance_condition: invalid 'iff' function '"..instance.arg.cond.."'")
 			end
 			if logical_xor(_G[instance.arg.cond](desync), instance.arg.cond_neg) then
 				verdict = plan_instance_execute(desync, verdict, instance)

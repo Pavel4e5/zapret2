@@ -350,10 +350,19 @@ void daemonize(void)
 		DLOG_PERROR("setsid");
 		exit(21);
 	}
-	if (close(STDIN_FILENO)<0 || close(STDOUT_FILENO)<0 || close(STDERR_FILENO)<0)
+	if (close(STDIN_FILENO)<0 && errno!=EBADF)
 	{
-		// will work only if debug not to console
-		DLOG_PERROR("close");
+		DLOG_PERROR("close(stdin)");
+		exit(22);
+	}
+	if (close(STDOUT_FILENO)<0 && errno!=EBADF)
+	{
+		DLOG_PERROR("close(stdout)");
+		exit(22);
+	}
+	if (close(STDERR_FILENO)<0 && errno!=EBADF)
+	{
+		DLOG_PERROR("close(stderr)");
 		exit(22);
 	}
 	/* redirect fd's 0,1,2 to /dev/null */

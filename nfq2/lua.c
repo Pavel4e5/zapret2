@@ -2569,12 +2569,13 @@ bool lua_reconstruct_dissect(lua_State *L, int idx, uint8_t *buf, size_t *len, b
 					DLOG_ERR("ipv4 frag : invalid ip_len\n");
 					goto err;
 				}
-				if (frag_start>l)
+				size_t frag_len = iplen-l3;
+				if ((frag_start+frag_len)>l)
 				{
-					DLOG_ERR("ipv4 frag : fragment offset is outside of the packet\n");
+					DLOG_ERR("ipv4 frag : fragment end is outside of the packet\n");
 					goto err;
 				}
-				if (off) memmove(buf+l3,buf+l3+off,iplen-l3);
+				if (off) memmove(buf+l3,buf+frag_start,frag_len);
 				l = iplen; // shrink packet to iplen
 			}
 			else
