@@ -659,7 +659,12 @@ bool set_env_exedir(const char *argv0)
 	if ((s = strdup(argv0)))
 	{
 		if ((d = dirname(s)))
+		{
+			char d_abs[PATH_MAX];
+			if (realpath(d, d_abs))
+				d=d_abs;
 			bOK = !setenv("EXEDIR", d, 1);
+		}
 		free(s);
 	}
 	return bOK;

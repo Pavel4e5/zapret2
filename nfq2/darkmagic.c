@@ -1589,7 +1589,7 @@ static bool windivert_recv_exit(void)
 	sigset_t pending;
 
 	// make signals working
-	sigpending(&pending);
+	usleep(0);
 
 	if (bQuit)
 	{

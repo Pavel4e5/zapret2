@@ -1677,6 +1677,7 @@ static void exithelp(void)
 		" --port=<port>\t\t\t\t\t\t; divert port\n"
 #endif
 		" --daemon\t\t\t\t\t\t; daemonize\n"
+		" --chdir[=path]\t\t\t\t\t\t; change current directory. if no path specified use EXEDIR\n"
 		" --pidfile=<filename>\t\t\t\t\t; write pid to file\n"
 #ifndef __CYGWIN__
 		" --user=<username>\t\t\t\t\t; drop root privs\n"
@@ -1840,6 +1841,7 @@ enum opt_indices {
 	IDX_PORT,
 #endif
 	IDX_DAEMON,
+	IDX_CHDIR,
 	IDX_PIDFILE,
 #ifndef __CYGWIN__
 	IDX_USER,
@@ -1944,6 +1946,7 @@ static const struct option long_options[] = {
 	[IDX_PORT] = {"port", required_argument, 0, 0},
 #endif
 	[IDX_DAEMON] = {"daemon", no_argument, 0, 0},
+	[IDX_CHDIR] = {"chdir", optional_argument, 0, 0},
 	[IDX_PIDFILE] = {"pidfile", required_argument, 0, 0},
 #ifndef __CYGWIN__
 	[IDX_USER] = {"user", required_argument, 0, 0},
@@ -2248,6 +2251,22 @@ int main(int argc, char **argv)
 #endif
 		case IDX_DAEMON:
 			params.daemon = true;
+			break;
+		case IDX_CHDIR:
+			{
+				const char *d = optarg ? optarg : getenv("EXEDIR");
+				if (!d)
+				{
+					DLOG_ERR("chdir: directory unknown\n");
+					exit_clean(1);
+				}
+				DLOG("changing dir to '%s'\n",d);
+				if (chdir(d))
+				{
+					DLOG_PERROR("chdir");
+					exit_clean(1);
+				}
+			}
 			break;
 		case IDX_PIDFILE:
 			snprintf(params.pidfile, sizeof(params.pidfile), "%s", optarg);
