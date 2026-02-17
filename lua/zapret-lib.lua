@@ -153,7 +153,7 @@ function apply_arg_prefix(desync)
 		local c = string.sub(v,1,1)
 		if c=='#' then
 			local blb = blob(desync,string.sub(v,2))
-			desync.arg[a] = (type(blb)=='string' or type(blb)=='table') and #blb or 0
+			desync.arg[a] = tostring((type(blb)=='string' or type(blb)=='table') and #blb or 0)
 		elseif c=='%' then
 			desync.arg[a] = blob(desync,string.sub(v,2))
 		elseif c=='\\' then
@@ -545,6 +545,7 @@ function blob(desync, name, def)
 				error("blob  '"..name.."' unavailable")
 			end
 		end
+		blob = tostring(blob)
 	end
 	return blob
 end

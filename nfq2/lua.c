@@ -1248,6 +1248,7 @@ void lua_push_blob(lua_State *L, int idx_desync, const char *blob)
 		lua_pop(L,1);
 		lua_getglobal(L, blob);
 	}
+	lua_tostring(L,-1);
 }
 void lua_pushf_blob(lua_State *L, int idx_desync, const char *field, const char *blob)
 {
@@ -1779,7 +1780,10 @@ void lua_pushf_args(lua_State *L, const struct str2_list_head *args, int idx_des
 				lua_push_blob(L, idx_desync, val+1);
 				lua_Integer len = lua_rawlen(L, -1);
 				lua_pop(L,1);
-				lua_pushf_int(L, var, len);
+				lua_pushstring(L, var);
+				lua_pushinteger(L, len);
+				lua_tostring(L,-1); // force string type in arg
+				lua_rawset(L,-3);
 			}
 			else
 				lua_pushf_str(L, var, val);
