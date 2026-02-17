@@ -5,7 +5,7 @@ make -C /opt/zapret2 systemd
 
 linux static :
 
-need any x86_64 classic linux distribution with curl, unzip, gcc, make
+need any x86_64 classic linux distribution with curl, unzip, make, gcc, gcc-multilib
 copy directory "builder-linux" somethere with enough free disk space (up to 2G for all toolchains)
 run "get_toolchains.sh"
 select architectures you need or "ALL"
