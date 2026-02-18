@@ -4,7 +4,8 @@ EXEDIR="$(cd "$EXEDIR"; pwd)"
 TOOLCHAINS="$EXEDIR/toolchain"
 DEPS="$EXEDIR/deps"
 STAGE="$EXEDIR/staging"
-MINSIZE="-Oz -flto=auto -ffunction-sections -fdata-sections"
+OPTIMIZE=-Oz
+MINSIZE="$OPTIMIZE -flto=auto -ffunction-sections -fdata-sections"
 LDMINSIZE="-Wl,--gc-sections -flto=auto"
 CFLAGS=""
 LDFLAGS="-lgcc_eh"
@@ -88,6 +89,7 @@ buildenv()
 	export PKG_CONFIG_PATH=$STAGING_DIR/lib/pkgconfig
 	OLDPATH="$PATH"
 	export PATH="$PATH:$TOOLCHAINS/$TARGET/bin"
+	[ "$1" = i586-unknown-linux-musl ] && CFLAGS="$CFLAGS -mmmx"
 }
 buildenv_clear()
 {

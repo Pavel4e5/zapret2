@@ -46,7 +46,7 @@ for t in $TGT; do
 
 	pushd $ZBASE/$ZDIR
 
-	OPTIMIZE=-Oz \
+	OPTIMIZE=$OPTIMIZE \
 	CFLAGS="-static-libgcc -static -I$STAGING_DIR/include $MINSIZE $CFLAGS" \
 	LDFLAGS="-L$STAGING_DIR/lib $LDMINSIZE $LDFLAGS" \
 	make
