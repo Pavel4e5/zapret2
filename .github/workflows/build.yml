@@ -104,7 +104,7 @@ jobs:
           fi
           MINSIZE="$OPTIMIZE $MINSIZE"
 
-          if [[ "$ARCH" == lexra ]] || [[ "$ARCH" == ppc ]] || [[ "$ARCH" == riscv64 ]] || [[ "$ARCH" == x86 ]] ; then
+          if [[ "$ARCH" == lexra ]] || [[ "$ARCH" == riscv64 ]] || [[ "$ARCH" == x86 ]] ; then
             # use classic lua
             wget -qO- https://www.lua.org/ftp/lua-${LUA_RELEASE}.tar.gz | tar -xz
             (
