@@ -9,6 +9,7 @@ need any x86_64 classic linux distribution
 tested on debian/ubuntu/fedora 2020+
 if your distro is very exotic, old or not glibc based you can debootstrap a modern debian/ubuntu system and chroot to it
 NOTE: it's not possible to build luajit in chroot under standard openwrt kernel. build process requires 32-bit x86 support, kernel is compiled without it.
+NOTE: toolchains are pre-compiled for x86_64 glibc. they can't run on arm or anything that is not x86_64.
 
 optionally review "common.inc" for Lua and LuaJIT versions
 
