@@ -490,17 +490,28 @@ jobs:
           pattern: zapret2-*
 
       - name: Install upx
-        uses: crazy-max/ghaction-upx@v3
-        with:
-          install-only: true
-          version: v5.1.0
+        shell: bash
+        env:
+          VER_OLD: 4.2.4
+          VER_NEW: 5.1.0
+        run: |
+          # old upx works for old kernels like 2.6.26
+          # new upx crashes on ~<3.10 but required for riscv64
+          curl -Lo - https://github.com/upx/upx/releases/download/v$VER_OLD/upx-$VER_OLD-amd64_linux.tar.xz | tar -Jx upx-$VER_OLD-amd64_linux/upx
+          sudo cp upx-$VER_OLD-amd64_linux/upx /usr/local/bin/upx_old
+          curl -Lo - https://github.com/upx/upx/releases/download/v$VER_NEW/upx-$VER_NEW-amd64_linux.tar.xz | tar -Jx upx-$VER_NEW-amd64_linux/upx
+          sudo cp upx-$VER_NEW-amd64_linux/upx /usr/local/bin/upx_new
+          rm -r upx-$VER_OLD-amd64_linux/upx upx-$VER_NEW-amd64_linux/upx
 
       - name: Prepare binaries
         shell: bash
         run: |
           cd ${{ steps.bins.outputs.download-path }}
-          run_upx() {
-            upx --best --lzma $@ || true
+          run_upx_old() {
+            upx_old --best --lzma $@ || true
+          }
+          run_upx_new() {
+            upx_new --best --lzma $@ || true
           }
           run_dir() {
             for f in $dir/* ; do
@@ -508,8 +519,10 @@ jobs:
               case $f in
                 *.tar.xz )
                   tar -C $dir -xvf $f && rm $f
-                  if [[ $dir =~ linux ]] && [[ $dir != *-linux-mips64 ]] && [[ $dir != *-linux-lexra ]]; then
-                    run_upx $dir/*
+                  if [[ $dir = *-linux-riscv64 ]]; then
+                    run_upx_new $dir/*
+                  elif [[ $dir =~ linux ]] && [[ $dir != *-linux-mips64 ]] && [[ $dir != *-linux-lexra ]]; then
+                    run_upx_old $dir/*
                   fi
                   ;;
                 *.zip )
@@ -541,8 +554,6 @@ jobs:
                 *-linux-x86 )           run_dir linux-x86 ;;
                 *-linux-x86_64 )        run_dir linux-x86_64 ;;
                 *-linux-lexra )         run_dir linux-lexra ;;
-                *-win-x86 )             run_dir windows-x86 ;;
-                *-win-x86_64 )          run_dir windows-x86_64 ;;
               esac
             fi
           done
