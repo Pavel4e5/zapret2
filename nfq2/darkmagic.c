@@ -557,12 +557,15 @@ void proto_dissect_l3l4(const uint8_t *data, size_t len, struct dissect *dis, bo
 	dis->data_pkt = data;
 	dis->len_pkt = len;
 
+	uint16_t iplen;
+
 	if (proto_check_ipv4(data, len) && (no_payload_check || proto_check_ipv4_payload(data, len)))
 	{
 		dis->ip = (const struct ip *) data;
 		dis->proto = dis->ip->ip_p;
 		p = data;
-		dis->len_pkt = len = ntohs(((struct ip*)data)->ip_len);
+		iplen = ntohs(((struct ip*)data)->ip_len);
+		if (iplen<len) dis->len_pkt = len = iplen;
 		proto_skip_ipv4(&data, &len, &dis->frag, &dis->frag_off);
 		dis->len_l3 = data-p;
 	}
@@ -570,7 +573,8 @@ void proto_dissect_l3l4(const uint8_t *data, size_t len, struct dissect *dis, bo
 	{
 		dis->ip6 = (const struct ip6_hdr *) data;
 		p = data;
-		dis->len_pkt = len = ntohs(((struct ip6_hdr*)data)->ip6_ctlun.ip6_un1.ip6_un1_plen) + sizeof(struct ip6_hdr);
+		iplen = ntohs(((struct ip6_hdr*)data)->ip6_ctlun.ip6_un1.ip6_un1_plen) + sizeof(struct ip6_hdr);
+		if (iplen<len) dis->len_pkt = len = iplen;
 		proto_skip_ipv6(&data, &len, &dis->proto, &dis->frag, &dis->frag_off);
 		dis->len_l3 = data-p;
 	}

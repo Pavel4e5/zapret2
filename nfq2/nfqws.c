@@ -387,6 +387,8 @@ static void notify_ready(void)
 #endif
 }
 
+// extra space for netlink headers
+#define NFQ_MAX_RECV_SIZE (RECONSTRUCT_MAX_SIZE+512)
 static int nfq_main(void)
 {
 	struct nfq_handle *h = NULL;
@@ -436,7 +438,7 @@ static int nfq_main(void)
 		goto exok;
 	}
 
-	if (!(buf = malloc(RECONSTRUCT_MAX_SIZE)) || !(mod = malloc(RECONSTRUCT_MAX_SIZE)))
+	if (!(buf = malloc(NFQ_MAX_RECV_SIZE)) || !(mod = malloc(RECONSTRUCT_MAX_SIZE)))
 	{
 		DLOG_ERR("out of memory\n");
 		goto err;
@@ -466,7 +468,7 @@ static int nfq_main(void)
 	do
 	{
 		if (bQuit) goto quit;
-		while ((rd = recv(fd, buf, RECONSTRUCT_MAX_SIZE, 0)) >= 0)
+		while ((rd = recv(fd, buf, NFQ_MAX_RECV_SIZE, 0)) >= 0)
 		{
 			if (!rd)
 			{
