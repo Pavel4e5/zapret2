@@ -2,8 +2,8 @@
 
 WEBSERVER_DEFAULT_STRATEGY="
 --server
---payload http_reply,tls_server_hello --lua-desync=fake:blob=0x00000000000000000000000000000000:badsum:repeats=2 --lua-desync=multisplit
---payload empty --lua-desync=synack_split"
+--payload=http_reply,tls_server_hello --lua-desync=fake:blob=0x00000000000000000000000000000000:badsum:repeats=2 --lua-desync=multisplit
+--payload=empty --lua-desync=synack_split"
 
 # can override in config :
 NFQWS_OPT_DESYNC_WEBSERVER="${NFQWS_OPT_DESYNC_WEBSERVER:-$WEBSERVER_DEFAULT_STRATEGY}"

@@ -1,7 +1,7 @@
 # this custom script demonstrates how to launch extra nfqws instance limited by ipset
 
 # can override in config :
-NFQWS2_MY1_OPT="${NFQWS2_MY1_OPT:---filter-udp=* --payload known,unknown --lua-desync=fake:blob=0x00000000000000000000000000000000:repeats=2:payload=all --new --filter-tcp=* --payload=known,unknown --lua-desync=multisplit}"
+NFQWS2_MY1_OPT="${NFQWS2_MY1_OPT:---filter-udp=* --payload=known,unknown --lua-desync=fake:blob=0x00000000000000000000000000000000:repeats=2:payload=all --new --filter-tcp=* --payload=known,unknown --lua-desync=multisplit}"
 NFQWS2_MY1_SUBNETS4="${NFQWS2_MY1_SUBNETS4:-173.194.0.0/16 108.177.0.0/17 74.125.0.0/16 64.233.160.0/19 172.217.0.0/16}"
 NFQWS2_MY1_SUBNETS6="${NFQWS2_MY1_SUBNETS6:-2a00:1450::/29}"
 NFQWS2_MY1_PORTS_TCP=${NFQWS2_MY1_PORTS_TCP:-$NFQWS2_PORTS_TCP}

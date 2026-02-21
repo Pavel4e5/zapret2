@@ -2,7 +2,7 @@
 # NOTE: @ih requires nft 1.0.1+ and updated kernel version. it's confirmed to work on 5.15 (openwrt 23) and not work on 5.10 (openwrt 22)
 
 # can override in config :
-NFQWS_OPT_DESYNC_QUIC="${NFQWS_OPT_DESYNC_QUIC:---payload quic_initial --lua-desync=fake:blob=fake_default_quic:repeats=2}"
+NFQWS_OPT_DESYNC_QUIC="${NFQWS_OPT_DESYNC_QUIC:---payload=quic_initial --lua-desync=fake:blob=fake_default_quic:repeats=2}"
 
 alloc_dnum DNUM_QUIC4ALL
 alloc_qnum QNUM_QUIC4ALL
