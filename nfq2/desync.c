@@ -1674,6 +1674,32 @@ static const uint8_t *dns_extract_name(const uint8_t *a, const uint8_t *b, const
 	name[nl] = 0;
 	return bptr ? a+2 : p+1;
 }
+static bool dns_skip_name(const uint8_t **a, size_t *len)
+{
+	// 11 higher bits indicate pointer
+	// lazy skip name. mixed compressed/uncompressed names are supported
+	for(;;)
+	{
+		if (*len<2) return false;
+		if ((**a & 0xC0)==0xC0)
+		{
+			// pointer is the end
+			(*a)+=2; (*len)-=2;
+			break;
+		}
+		if (!**a)
+		{
+			// zero length is the end
+			(*a)++; (*len)--;
+			break;
+		}
+		if (*len<(**a+1)) return false;
+		*len-=**a+1;
+		*a+=**a+1;
+	}
+	return true;
+}
+
 static bool feed_dns_response(const uint8_t *a, size_t len)
 {
 	if (!params.cache_hostname) return true;
@@ -1686,7 +1712,12 @@ static bool feed_dns_response(const uint8_t *a, size_t len)
 	size_t nl;
 	char name[256] = "";
 
-	if (!qcount || !acount || len<12 || !(a[2]&0x80)) return false;
+	if (!qcount || len<12 || !(a[2]&0x80)) return false;
+	if (!acount)
+	{
+		DLOG("skipping DNS response without answer\n");
+		return false;
+	}
 	a+=12; len-=12;
 	for(k=0,*name = 0 ; k<qcount ; k++)
 	{
@@ -1712,25 +1743,8 @@ static bool feed_dns_response(const uint8_t *a, size_t len)
 	if (!*name) return false;
 	for(k=0;k<acount;k++)
 	{
-		if (len<12) return false;
-		// 11 higher bits indicate pointer
-		if ((*a & 0xC0)==0xC0)
-		{
-			a+=2; len-=2;
-		}
-		else
-		{
-			// skip full name
-			while(*a)
-			{
-				// we do not support mixed names
-				if ((*a & 0xC0)==0xC0 || len<(*a + 11)) return false;
-				len-=*a+1;
-				a+=*a+1;
-			}
-			a++; len--;
-		}
-
+		if (!dns_skip_name(&a,&len)) return false;
+		if (len<10) return false;
 		dlen = a[8]<<8 | a[9];
 		if (len<(dlen+10)) return false;
 		if (a[2]==0 && a[3]==1) // IN class
