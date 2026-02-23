@@ -1648,9 +1648,12 @@ static const uint8_t *dns_extract_name(const uint8_t *a, const uint8_t *b, const
 {
 	size_t nl, off;
 	const uint8_t *p;
-	bool bptr = (*a & 0xC0)==0xC0;
+	bool bptr;
 	uint8_t x,y;
 
+	if (!name_size) return NULL;
+
+	bptr = (*a & 0xC0)==0xC0;
 	if (bptr)
 	{
 		if (a+1>=e) return NULL;
@@ -1665,12 +1668,17 @@ static const uint8_t *dns_extract_name(const uint8_t *a, const uint8_t *b, const
 	if (p>=e) return NULL;
 	for (nl=0; *p ;)
 	{
+		if (nl)
+		{
+			if (nl>=name_size) return NULL;
+			name[nl++] = '.';
+		}
 		// do not support mixed ptr+real
 		if ((*p & 0xC0) || (p+*p+1)>=e || (*p+1)>=(name_size-nl)) return NULL;
-		if (nl)	name[nl++] = '.';
 		for(y=*p++,x=0 ; x<y ; x++,p++) name[nl+x] = tolower(*p);
 		nl += y;
 	}
+	if (nl>=name_size) return NULL;
 	name[nl] = 0;
 	return bptr ? a+2 : p+1;
 }
