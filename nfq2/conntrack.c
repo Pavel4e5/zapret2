@@ -148,7 +148,7 @@ static void ConntrackApplyPos(t_ctrack *t, bool bReverse, const struct dissect *
 		if (scale != SCALE_NONE) direct->scale = scale;
 		direct->mss = tcp_find_mss(dis->tcp);
 	}
-	else if (direct->scale != SCALE_NONE)
+	else
 		// apply scale only outside of the SYN stage
 		direct->winsize_calc <<= direct->scale;
 
@@ -367,8 +367,8 @@ void ConntrackPoolDump(const t_conntrack *p)
 				t->track.pos.client.seq0, t->track.pos.client.seq_last - t->track.pos.client.seq0, t->track.pos.client.pos - t->track.pos.client.seq0,
 				t->track.pos.server.seq0, t->track.pos.server.seq_last - t->track.pos.server.seq0, t->track.pos.server.pos - t->track.pos.server.seq0,
 				t->track.pos.client.mss, t->track.pos.server.mss,
-				t->track.pos.client.winsize, t->track.pos.client.scale == SCALE_NONE ? -1 : t->track.pos.client.scale,
-				t->track.pos.server.winsize, t->track.pos.server.scale == SCALE_NONE ? -1 : t->track.pos.server.scale);
+				t->track.pos.client.winsize, t->track.pos.client.scale,
+				t->track.pos.server.winsize, t->track.pos.server.scale);
 		else
 			printf("rseq=%u client.pos=%u rack=%u server.pos=%u",
 				t->track.pos.client.seq_last, t->track.pos.client.pos,

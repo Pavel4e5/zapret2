@@ -1679,52 +1679,82 @@ static bool feed_dns_response(const uint8_t *a, size_t len)
 	if (!params.cache_hostname) return true;
 
 	// check of minimum header length and response flag
-	uint16_t k, off, dlen, qcount = a[4]<<8 | a[5], acount = a[6]<<8 | a[7];
+	uint16_t k, typ, off, dlen, qcount = a[4]<<8 | a[5], acount = a[6]<<8 | a[7];
 	char s_ip[INET6_ADDRSTRLEN];
 	const uint8_t *b = a, *p;
 	const uint8_t *e = b + len;
 	size_t nl;
 	char name[256] = "";
 
-	if (len<12 || !(a[2]&0x80)) return false;
+	if (!qcount || !acount || len<12 || !(a[2]&0x80)) return false;
 	a+=12; len-=12;
-	for(k=0;k<qcount;k++)
+	for(k=0,*name = 0 ; k<qcount ; k++)
 	{
+		if (*name) return false; // we do not support multiple queries with names
 		// remember original query name
 		if (!(p = dns_extract_name(a, b, e, name, sizeof(name)))) return false;
 		len -= p-a;
+		if ((len<4) || p[2] || p[3]!=1)	return false;
+		typ = pntoh16(p);
 		// must be A or AAAA query. others are not interesting
-		if ((len<4) || p[0] || p[1]!=1 && p[1]!=28 || p[2] || p[3]!=1) return false;
+		if (typ!=1 && typ!=28)
+		{
+			DLOG("skipping DNS query type %u for '%s'\n", typ, name);
+			return false;
+		}
+		else
+		{
+			DLOG("DNS query type %u for '%s'\n", typ, name);
+		}
 		// skip type, class
 		a=p+4; len-=4;
 	}
 	if (!*name) return false;
 	for(k=0;k<acount;k++)
 	{
+		if (len<12) return false;
 		// 11 higher bits indicate pointer
-		if (len<12 || (*a & 0xC0)!=0xC0) return false;
-
-		dlen = a[10]<<8 | a[11];
-		if (len<(dlen+12)) return false;
-		if (a[4]==0 && a[5]==1 && a[2]==0) // IN class and higher byte of type = 0
+		if ((*a & 0xC0)==0xC0)
 		{
-			switch(a[3])
+			a+=2; len-=2;
+		}
+		else
+		{
+			// skip full name
+			while(*a)
+			{
+				// we do not support mixed names
+				if ((*a & 0xC0)==0xC0 || len<(*a + 11)) return false;
+				len-=*a+1;
+				a+=*a+1;
+			}
+			a++; len--;
+		}
+
+		dlen = a[8]<<8 | a[9];
+		if (len<(dlen+10)) return false;
+		if (a[2]==0 && a[3]==1) // IN class
+		{
+			typ = pntoh16(a);
+			switch(typ)
 			{
 				case 1: // A
 					if (dlen!=4) break;
-					if (params.debug && inet_ntop(AF_INET, a+12, s_ip, sizeof(s_ip)))
-						DLOG("DNS response : %s\n", s_ip);
-					ipcache_put_hostname((struct in_addr *)(a+12), NULL, name, false);
+					if (params.debug && inet_ntop(AF_INET, a+10, s_ip, sizeof(s_ip)))
+						DLOG("DNS response type %u : %s\n", typ, s_ip);
+					ipcache_put_hostname((struct in_addr *)(a+10), NULL, name, false);
 					break;
 				case 28: // AAAA
 					if (dlen!=16) break;
-					if (params.debug && inet_ntop(AF_INET6, a+12, s_ip, sizeof(s_ip)))
-						DLOG("DNS response : %s\n", s_ip);
-					ipcache_put_hostname(NULL, (struct in6_addr *)(a+12), name, false);
+					if (params.debug && inet_ntop(AF_INET6, a+10, s_ip, sizeof(s_ip)))
+						DLOG("DNS response type %u : %s\n", typ, s_ip);
+					ipcache_put_hostname(NULL, (struct in6_addr *)(a+10), name, false);
 					break;
+				default:
+					DLOG("skipping DNS response type %u\n", typ);
 			}
 		}
-		len -= 12+dlen; a += 12+dlen;
+		len -= 10+dlen; a += 10+dlen;
 	}
 	return true;
 }

@@ -29,7 +29,7 @@ typedef struct
 	uint16_t winsize;	// last seen window size
 	uint16_t mss;
 	uint32_t winsize_calc;	// calculated window size
-	uint8_t scale;		// last seen window scale factor. SCALE_NONE if none
+	uint8_t scale;		// last seen window scale factor
 	bool rseq_over_2G;
 } t_ctrack_position;
 
