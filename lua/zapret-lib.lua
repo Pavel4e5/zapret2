@@ -644,7 +644,7 @@ function parse_tcp_flags(s)
 	local s_upper = string.upper(s)
 	for flag in string.gmatch(s_upper, "[^,]+") do
 		if flags[flag] then
- 			f = bitor(f,flags[flag])
+			f = bitor(f,flags[flag])
 		else
 			error("tcp flag '"..flag.."' is invalid")
 		end
@@ -1566,11 +1566,11 @@ function tls_client_hello_mod(tls, options)
 			table.insert(tdis.handshake[TLS_HANDSHAKE_TYPE_CLIENT].dis.ext[idx_sni].dis.list, { name = options.sni_last, type = options.sni_snt_new } )
 		end
 	end
-	local tls = tls_reconstruct(tdis)
-	if not tls then
+	local rtls = tls_reconstruct(tdis)
+	if not rtls then
 		DLOG_ERR("tls_client_hello_mod: reconstruct error")
 	end
-	return tls
+	return rtls
 end
 
 -- checks if filename is gzip compressed
@@ -1659,7 +1659,7 @@ function readfile(filename)
 	if not f then
 		error("readfile: "..err)
 	end
-	local s,err = f:read("*a")
+	local s, err = f:read("*a")
 	f:close()
 	if err then
 		error("readfile: "..err)
@@ -1677,7 +1677,7 @@ function writefile(filename, data)
 	if not f then
 		error("writefile: "..err)
 	end
-	local s,err = f:write(data)
+	local s, err = f:write(data)
 	f:close()
 	if not s then
 		error("writefile: "..err)
@@ -1697,7 +1697,7 @@ function http_dissect_header(header)
 end
 -- make table with structured http header representation
 function http_dissect_headers(http, pos)
-	local eol,pnext,header,value,idx,headers,pos_endheader,pos_startvalue,pos_headers_end
+	local eol,pnext,header,value,headers,pos_endheader,pos_startvalue,pos_headers_end
 	headers={}
 	while pos do
 		eol,pnext = find_next_line(http,pos)
@@ -2261,7 +2261,8 @@ function tls_dissect_ext(ext)
 		return left, off
 	end
 
-	local dis={}, off, len, left
+	local dis={}
+	local off, len, left
 
 	ext.dis = nil
 
