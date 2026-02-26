@@ -259,3 +259,7 @@ v0.9.4.3
 * nfqws2: fix broken wifi ssid update
 * github: revert to upx 4.2.4 for all archs except riscv64
 * zapret-lib: apply_fooling throws error if tcp_ts,tcp_seq,tcp_ack,ip_ttl,ip6_ttl,ip_autottl,ip6_autottl are empty or invalid
+
+0.9.4.4
+
+* winws2, dvtws2: ASLR
