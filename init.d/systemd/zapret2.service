@@ -7,7 +7,6 @@ Type=forking
 Restart=no
 TimeoutSec=30sec
 IgnoreSIGPIPE=no
-KillMode=none
 GuessMainPID=no
 RemainAfterExit=no
 ExecStart=/opt/zapret2/init.d/sysv/zapret2 start
