@@ -9,6 +9,8 @@ MINSIZE="${MINSIZE:--flto=auto -ffunction-sections -fdata-sections}"
 LDMINSIZE="${LDMINSIZE:--Wl,--gc-sections -flto=auto}"
 #CFLAGS=""
 LDFLAGS="-lgcc_eh $LDFLAGS"
+# PIE makes ASLR working but adds 5% to size
+PIE=${PIE:-0}
 HOSTCC=${HOSTCC:-cc}
 LUA_VER=${LUA_VER:-5.5}
 LUA_RELEASE=${LUA_RELEASE:-5.5.0}
@@ -16,6 +18,13 @@ LUAJIT_VER=${LUAJIT_VER:-2.1}
 LUAJIT_RELEASE=${LUAJIT_RELEASE:-2.1-20250826}
 LUAJIT_LUA_VER=${LUAJIT_LUA_VER:-5.1}
 nproc=$(nproc)
+
+CFLAGS_PIC=
+LDFLAGS_PIE=-static
+[ "$PIE" = 1 ] && {
+	CFLAGS_PIC=-fPIC
+	LDFLAGS_PIE=-static-pie
+}
 
 TARGETS="\
 aarch64-unknown-linux-musl \
