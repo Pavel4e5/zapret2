@@ -104,6 +104,7 @@ jobs:
           fi
           MINSIZE="$OPTIMIZE $MINSIZE"
 
+          [ "$ARCH" == lexra ] && LEXRA=1
           if [[ "$ARCH" == lexra ]] || [[ "$ARCH" == riscv64 ]] || [[ "$ARCH" == x86 ]] ; then
             # use classic lua
             wget -qO- https://www.lua.org/ftp/lua-${LUA_RELEASE}.tar.gz | tar -xz
@@ -170,6 +171,7 @@ jobs:
           OPTIMIZE=$OPTIMIZE \
           CFLAGS="-DZAPRET_GH_VER=${{ github.ref_name }} -DZAPRET_GH_HASH=${{ github.sha }} -static-libgcc -static -I$DEPS_DIR/include $CFLAGS" \
           LDFLAGS="-L$DEPS_DIR/lib $LDFLAGS" \
+          ${LEXRA:+CFLAGS_PIC= LDFLAGS_PIE=} \
           make -C zapret2 LUA_JIT=$LJIT LUA_CFLAGS="$LCFLAGS" LUA_LIB="$LLIB" -j$(nproc)
 
           tar -C zapret2/binaries/my -cJf zapret2-linux-$ARCH.tar.xz .
@@ -315,14 +317,14 @@ jobs:
           TARGET: ${{ matrix.target }}
           ARCH: ${{ matrix.arch }}
           CC: ${{ matrix.target }}-freebsd11-clang
-          MINSIZE: -Oz -flto=auto -ffunction-sections -fdata-sections
+          MINSIZE: -Os -flto=auto -ffunction-sections -fdata-sections
           LDMINSIZE: -Wl,--gc-sections -flto=auto
         run: |
 
           wget -qO- https://github.com/openresty/luajit2/archive/refs/tags/v${LUAJIT_RELEASE}.tar.gz | tar -xz
           (
             cd luajit2-*
-            make BUILDMODE=static XCFLAGS=-DLUAJIT_DISABLE_FFI HOST_CC=gcc CC=$CC TARGET_CFLAGS="$MINSIZE $CFLAGS" TARGET_LDFLAGS="$LDMINSIZE $LDFLAGS"
+            make BUILDMODE=static XCFLAGS="-fPIC -DLUAJIT_DISABLE_FFI" HOST_CC=gcc CC=$CC TARGET_CFLAGS="$MINSIZE $CFLAGS -fPIC" TARGET_LDFLAGS="$LDMINSIZE $LDFLAGS"
             make install PREFIX= DESTDIR=$DEPS_DIR
           )
 

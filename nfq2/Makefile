@@ -3,14 +3,16 @@ PKG_CONFIG ?= pkg-config
 OPTIMIZE ?= -Os
 MINSIZE ?= -flto=auto -ffunction-sections -fdata-sections
 CFLAGS += -std=gnu99 $(OPTIMIZE) $(MINSIZE)
-CFLAGS_LINUX = -Wno-alloc-size-larger-than -fPIC
+CFLAGS_PIC = -fPIC
+CFLAGS_LINUX = -Wno-alloc-size-larger-than $(CFLAGS_PIC)
 CFLAGS_SYSTEMD = -DUSE_SYSTEMD
-CFLAGS_BSD = -Wno-address-of-packed-member -fPIC
+CFLAGS_BSD = -Wno-address-of-packed-member $(CFLAGS_PIC)
 CFLAGS_CYGWIN = -Wno-address-of-packed-member -static -Wl,--nxcompat
 CFLAGS_CYGWIN32 =
 CFLAGS_CYGWIN64 = -Wl,--dynamicbase -Wl,--high-entropy-va
 CFLAGS_UBSAN = -fsanitize=undefined,alignment -fno-sanitize-recover=undefined,alignment
-LDFLAGS += -flto=auto -Wl,--gc-sections -pie
+LDFLAGS_PIE = -pie
+LDFLAGS += -flto=auto -Wl,--gc-sections $(LDFLAGS_PIE)
 LDFLAGS_ANDROID = -llog
 LIBS =
 LIBS_LINUX = -lz -lnetfilter_queue -lnfnetlink -lmnl -lm
