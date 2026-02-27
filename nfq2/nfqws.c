@@ -378,7 +378,11 @@ static bool nfq_init(struct nfq_handle **h, struct nfq_q_handle **qh, struct nfq
 		// dot not fail. not supported in old linuxes <3.6 
 	}
 
-	nfnl_rcvbufsiz(nfq_nfnlh(*h), Q_RCVBUF);
+	unsigned int rcvbuf = nfnl_rcvbufsiz(nfq_nfnlh(*h), Q_RCVBUF) / 2;
+	if (rcvbuf==Q_RCVBUF)
+		DLOG("set receive buffer size to %u\n", rcvbuf);
+	else
+		DLOG_CONDUP("could not set receive buffer size to %u. real size is %u\n", Q_RCVBUF, rcvbuf);
 
 	int yes = 1, fd = nfq_fd(*h);
 
@@ -412,7 +416,7 @@ static int nfq_main(void)
 	ssize_t rd;
 	FILE *Fpid = NULL;
 	uint8_t *buf=NULL, *mod=NULL;
-	struct nfq_cb_data cbdata = { .sock = -1 };
+	struct nfq_cb_data cbdata = { .sock = -1, .mod = NULL };
 
 	if (*params.pidfile && !(Fpid = fopen(params.pidfile, "w")))
 	{
@@ -517,11 +521,18 @@ static int nfq_main(void)
 		// do not fail on ENOBUFS
 	} while (e == ENOBUFS);
 
+err:
+	res=1;
+	goto ex;
+
+quit:
+	DLOG_CONDUP("quit requested\n");
 exok:
 	res=0;
 ex:
-	free(cbdata.mod);
+	if (Fpid) fclose(Fpid);
 	if (cbdata.sock>=0) close(cbdata.sock);
+	free(cbdata.mod);
 	free(buf);
 	nfq_deinit(&h, &qh);
 	lua_shutdown();
@@ -530,13 +541,6 @@ ex:
 #endif
 	rawsend_cleanup();
 	return res;
-err:
-	if (Fpid) fclose(Fpid);
-	res=1;
-	goto ex;
-quit:
-	DLOG_CONDUP("quit requested\n");
-	goto exok;
 }
 
 #elif defined(BSD)
