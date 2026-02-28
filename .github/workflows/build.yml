@@ -99,11 +99,15 @@ jobs:
           export STRIP=$TARGET-strip
           export PKG_CONFIG_PATH=$DEPS_DIR/lib/pkgconfig
           export STAGING_DIR=$RUNNER_TEMP
-          if [ "$ARCH" = lexra ]; then
-            OPTIMIZE=-Os
-          else
-            OPTIMIZE=-Oz
-          fi
+          OPTIMIZE=-Oz
+          case "$ARCH" in
+            lexra)
+              OPTIMIZE=-Os
+              ;;
+            arm)
+              CFLAGS="$CFLAGS -march=armv7-a -mthumb"
+              ;;
+          esac
           MINSIZE="$OPTIMIZE $MINSIZE"
 
           if [[ "$ARCH" == lexra ]] || [[ "$ARCH" == riscv64 ]] || [[ "$ARCH" == x86 ]] ; then
