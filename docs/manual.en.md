@@ -41,6 +41,8 @@
     - [The track table structure](#the-track-table-structure)
       - [ICMP processing](#icmp-processing)
       - [raw IP processing](#raw-ip-processing)
+  - [Timers](#timers)
+    - [Timer function prototype](#timer-function-prototype)
 - [nfqws2 C interface](#nfqws2-c-interface)
   - [Base constants](#base-constants)
   - [Standard blobs](#standard-blobs)
@@ -99,6 +101,9 @@
       - [lua_cutoff](#lua_cutoff)
       - [execution_plan](#execution_plan)
       - [execution_plan_cancel](#execution_plan_cancel)
+    - [Timer control](#timer-control)
+      - [timer_set](#timer_set)
+      - [timer_del](#timer_del)
 - [zapret-lib.lua base function library](#zapret-liblua-base-function-library)
   - [Base desync functions](#base-desync-functions)
     - [luaexec](#luaexec)
@@ -646,6 +651,7 @@ General parameters for all versions - nfqws2, dvtws2, winws2.
  --ipcache-lifetime=<int>                               ; IP cache entry lifetime in seconds. 0 - unlimited.
  --ipcache-hostname=[0|1]                               ; 1 or no argument enables hostname caching for use in zero-phase strategies
  --reasm-disable=[type[,type]]                          ; disable fragment reassembly for a list of payloads: tls_client_hello quic_initial. without arguments - disable reasm for everything.
+ --timer-res=msec					; timer resolution in msec. default - 50
 
 DESYNC ENGINE INIT:
  --writeable[=<dir_name>]                               ; create a directory for Lua with write permissions and store its path in the "WRITEABLE" env variable (only one directory)
@@ -1588,6 +1594,50 @@ If the ip protocol is not recognized as tcp, udp, icmp, icmpv6, it is considered
 Dissect has ip/ip6 field and payload. Payload contains all data after L3 headers.
 desync.track is always missing.
 
+## Timers
+
+Lua code can be called independently of received network data.
+The event source is time.
+A timer is an nfqws2 object, identified by a unique name, that allows you to call a specified Lua function at a specified frequency or once after a certain period of time.
+The timer is set by the [timer_set](#timer_set) function, and deleted by the [timer_del](#timer_del) function.
+
+nfqws2 is a single-threaded program, like the Lua engine. Timers are called in the same thread that processes network data.
+In Linux and Windows, packets are received in blocks, not one at a time. A block is processed until all remaining packets are exhausted.
+Timers are called between block processing. If processing takes a significant amount of time, the timer call may not be perfectly timed.
+
+It's important to remember the timer resolution specified with the `--timer-res` parameter. The default is 50 ms.
+This means that the timer call check can be performed no more frequently than the specified interval.
+If you set the period to 70 ms, the timer will be called staggered. +70 will be called at 100, +140 at 150, and +210 at 250.
+Therefore, it's advisable to set the period to a multiple of the timer resolution.
+Increasing the resolution (decreasing `--timer-res`) may slightly increase CPU load,
+since the processor will wake up every specified period to check all timers.
+The more timers, the higher CPU load for checking.
+The maximum resolution is 100 checks per second, which corresponds to `--timer-res=10`.
+
+Timers can be useful for handling unreplied packets.
+For example, you need to send something somewhere and read the response. But the other party might not respond or the response might not arrive.
+To prevent your system from hanging in an undefined state and leaving garbage in memory, a timer can help.
+Using timers, desync functions, and send functions, you can build a full-fledged state machine - even your own implementation of TCP or another guaranteed delivery system.
+The system should be designed asynchronously, using a state machine. Direct sleep delays is not the option, as they break the queue-based traffic processing scheme.
+While you're waiting, everything else will hang.
+
+### Timer function prototype
+
+```
+function timer(name, data)
+```
+
+The timer function can be passed any Lua variable of any type.
+A table can be used to store state associated with the timer.
+Simple type variables can be used to pass read-only values ​​one-way.
+data is set when the timer is started via [timer_set](#timer_set).
+When the timer is deleted, the variable is automatically deallocated if there are no other references to it.
+
+If a timer function fails with an error, the timer is forcibly deleted.
+Therefore, when developing timer functions, it is especially important to avoid error conditions.
+
+A one-shot timer is automatically deleted after the timer function is called. Manual deletion is not required, although it is permitted.
+
 
 # nfqws2 C interface
 
@@ -2359,6 +2409,37 @@ function execution_plan_cancel(ctx)
 
 A one-time cancellation of all subsequent instances within a profile.
 The instance performing the cancellation takes over the coordination of further actions and is called the orchestrator.
+
+### Timer control
+
+Timer creation and deletion functions can be called from any Lua code.
+This could be lua-init, lua-desync, or a timer function. A timer function can also act on itself, such as changing the period or terminating its own calls.
+
+Timers are identified by a name. Multiple timers with different names can call the same timer function.
+It will be passed the timer name and arbitrary data as parameters (#timer-function-prototype)
+
+#### timer_set
+
+Create or replace the timer.
+
+```
+function timer_set(name, func, period, oneshot, data)
+```
+
+* name - a unique timer name. If a timer with this name already exists, it is deleted and replaced with a new one. When replaced, the countdown restarts.
+* func - the timer function name (string)
+* period - the timer call frequency in milliseconds (see [timer resolution](#timers))
+* oneshot - a bool indicating whether the timer is single-shot (true) or periodic (false)
+* data - an arbitrary variable passed to the [timer-function](#timer-function-prototype)
+
+#### timer_del
+
+Delete the timer.
+
+```
+function timer_del(name)
+```
+
 
 # zapret-lib.lua base function library
 
