@@ -52,6 +52,7 @@ struct timer_pool *TimerPoolAdd(timer_pool **pp, const char *str, const char *fu
 	elem->lua_ref = LUA_NOREF;
 	elem->bt_prev = boottime_ms();
 	elem->n = ++timer_n;
+	elem->fires = 0;
 	return elem;
 }
 
@@ -66,7 +67,8 @@ static bool TimerPoolRunTimer(timer_pool *p)
 	}
 	lua_pushstring(params.L, p->str);
 	lua_rawgeti(params.L, LUA_REGISTRYINDEX, p->lua_ref);
-	DLOG("\ntimer: '%s' function '%s' period %llu oneshot %u\n",p->str,p->func,p->period,p->oneshot);
+	p->fires++;
+	DLOG("\ntimer: '%s' function '%s' period %llu oneshot %u fires=%u\n",p->str,p->func,p->period,p->oneshot,p->fires);
 	int status = lua_pcall(params.L, 2, 0, 0);
 	if (status)
 	{

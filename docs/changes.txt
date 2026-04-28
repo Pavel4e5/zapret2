@@ -284,3 +284,7 @@ v0.9.4.3
 0.9.5
 
 * nfqws2: timers
+
+0.9.5.1
+
+* nfqws2: timer_info, timer_enum

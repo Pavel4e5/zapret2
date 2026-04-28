@@ -907,13 +907,27 @@ function test_ifaddrs(opts)
 	end
 end
 
+function timer_info_print(tinfo)
+	print(" timer_info.name="..tinfo.name)
+	print(" timer_info.func="..tinfo.func)
+	print(" timer_info.period="..tinfo.period)
+	print(" timer_info.oneshot="..tostring(tinfo.oneshot))
+	print(" timer_info.fires="..tinfo.fires)
+end
+function timer_info_print_by_name(name)
+	local tinfo = timer_info(name)
+	timer_info_print(tinfo)
+end
+
 function timer1(name, data)
 	print("timer "..name.." fired. data="..tostring(data))
+	timer_info_print_by_name(name)
 end
 function timer2(name, data)
 	data.n = data.n+1
 	print("timer "..name.." fired. data.n="..tostring(data.n))
-	if data.n>=3 then
+	timer_info_print_by_name(name)
+	if data.n>=4 then
 		timer_del(name)
 	end
 end
@@ -921,6 +935,14 @@ function test_timer(opts)
 	timer_set("t1","timer1",500,true,"sample_data");
 	local tbl = {n=0}
 	timer_set("t2","timer2",700,false,tbl);
+
+	print("* timers\n")
+	local timers=timer_enum()
+	for i,timer in ipairs(timers) do
+		print("TIMER "..i.." :")
+		timer_info_print(timer)
+	end
+	print()
 end
 
 

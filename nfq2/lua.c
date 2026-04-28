@@ -3847,6 +3847,53 @@ static int luacall_timer_del(lua_State *L)
 	lua_pushboolean(L, !!timer);
 	LUA_STACK_GUARD_RETURN(L,1)
 }
+static int lua_push_timer_info(lua_State *L, const timer_pool *timer)
+{
+	lua_newtable(L);
+	if (timer->str) lua_pushf_str(L, "name", timer->str);
+	if (timer->func) lua_pushf_str(L, "func", timer->func);
+	lua_pushf_lint(L, "period", timer->period);
+	lua_pushf_bool(L, "oneshot", timer->oneshot);
+	lua_pushf_lint(L, "fires", timer->fires);
+}
+static void lua_pushi_timer_info(lua_State *L, lua_Integer idx, const timer_pool *timer)
+{
+	lua_pushinteger(L, idx);
+	lua_push_timer_info(L, timer);
+	lua_rawset(L,-3);
+}
+static int luacall_timer_info(lua_State *L)
+{
+	// timer_del(name)
+	lua_check_argc(L,"timer_info",1);
+
+	LUA_STACK_GUARD_ENTER(L)
+
+	const char *name =  luaL_checkstring(L,1);
+	const timer_pool *timer = TimerPoolSearch(params.timers, name);
+	if (timer)
+		lua_push_timer_info(L, timer);
+	else
+		lua_pushnil(L);
+
+	LUA_STACK_GUARD_RETURN(L,1)
+}
+static int luacall_timer_enum(lua_State *L)
+{
+	// timer_enum()
+	lua_check_argc(L,"timer_enum",0);
+
+	LUA_STACK_GUARD_ENTER(L)
+
+	lua_Integer n=1;
+	timer_pool *timer, *tmp, *p;
+
+	lua_newtable(L);
+	HASH_ITER(hh, params.timers, timer, tmp) lua_pushi_timer_info(L, n++, timer);
+
+	LUA_STACK_GUARD_RETURN(L,1)
+}
+
 
 // ----------------------------------------
 
@@ -4505,7 +4552,9 @@ static void lua_init_functions(void)
 
 		// timers
 		{"timer_set",luacall_timer_set},
-		{"timer_del",luacall_timer_del}
+		{"timer_del",luacall_timer_del},
+		{"timer_info",luacall_timer_info},
+		{"timer_enum",luacall_timer_enum}
 	};
 	for(int i=0;i<(sizeof(lfunc)/sizeof(*lfunc));i++)
 		lua_register(params.L,lfunc[i].name,lfunc[i].f);

@@ -12,7 +12,7 @@ typedef struct timer_pool {
 	bool oneshot;
 	int lua_ref;
 	uint64_t bt_prev;
-	unsigned int n;
+	unsigned int n, fires;
 	UT_hash_handle hh;	/* makes this structure hashable */
 } timer_pool;
 
