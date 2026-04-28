@@ -3856,12 +3856,6 @@ static int lua_push_timer_info(lua_State *L, const timer_pool *timer)
 	lua_pushf_bool(L, "oneshot", timer->oneshot);
 	lua_pushf_lint(L, "fires", timer->fires);
 }
-static void lua_pushi_timer_info(lua_State *L, lua_Integer idx, const timer_pool *timer)
-{
-	lua_pushinteger(L, idx);
-	lua_push_timer_info(L, timer);
-	lua_rawset(L,-3);
-}
 static int luacall_timer_info(lua_State *L)
 {
 	// timer_del(name)
@@ -3889,7 +3883,7 @@ static int luacall_timer_enum(lua_State *L)
 	timer_pool *timer, *tmp, *p;
 
 	lua_newtable(L);
-	HASH_ITER(hh, params.timers, timer, tmp) lua_pushi_timer_info(L, n++, timer);
+	HASH_ITER(hh, params.timers, timer, tmp) lua_pushi_str(L, n++, timer->str);
 
 	LUA_STACK_GUARD_RETURN(L,1)
 }

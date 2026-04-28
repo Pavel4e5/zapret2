@@ -938,9 +938,9 @@ function test_timer(opts)
 
 	print("* timers\n")
 	local timers=timer_enum()
-	for i,timer in ipairs(timers) do
+	for i,name in ipairs(timers) do
 		print("TIMER "..i.." :")
-		timer_info_print(timer)
+		timer_info_print_by_name(name)
 	end
 	print()
 end
