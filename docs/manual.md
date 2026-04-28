@@ -101,6 +101,8 @@
     - [Управление таймерами](#управление-таймерами)
       - [timer_set](#timer_set)
       - [timer_del](#timer_del)
+      - [timer_info](#timer_info)
+      - [timer_enum](#timer_enum)
 - [Библиотека базовых функций zapret-lib.lua](#библиотека-базовых-функций-zapret-liblua)
   - [Базовые desync функции](#базовые-desync-функции)
     - [luaexec](#luaexec)
@@ -2602,6 +2604,34 @@ function timer_set(name, func, period, oneshot, data)
 
 ```
 function timer_del(name)
+```
+
+#### timer_info
+
+Получить информацию о таймере.
+
+```
+function timer_del(name)
+```
+
+В случае успеха возвращается таблица, в случае неудачи - nil.
+
+
+| Поле    | Тип    | Описание            |
+| :------ | :----- | :------------------ |
+| name    | string | уникальное имя таймера |
+| func    | string | имя таймер функции |
+| oneshot | bool   | true = однократный таймер, false = периодический |
+| period  | number | период таймера в мсек |
+| fires   | number | количество выполненных вызовов таймера |
+
+
+#### timer_enum
+
+Получить массив уникальных имен всех существующих таймеров.
+
+```
+function timer_enum()
 ```
 
 

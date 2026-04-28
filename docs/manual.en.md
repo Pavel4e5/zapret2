@@ -104,6 +104,8 @@
     - [Timer control](#timer-control)
       - [timer_set](#timer_set)
       - [timer_del](#timer_del)
+      - [timer_info](#timer_info)
+      - [timer_enum](#timer_enum)
 - [zapret-lib.lua base function library](#zapret-liblua-base-function-library)
   - [Base desync functions](#base-desync-functions)
     - [luaexec](#luaexec)
@@ -2443,6 +2445,35 @@ Delete the timer.
 ```
 function timer_del(name)
 ```
+
+#### timer_info
+
+Get information about the timer identified by name.
+
+```
+function timer_del(name)
+```
+
+Returns table in case of success, nil otherwise.
+
+
+| Field   | Type   | Description  |
+| :------ | :----- | :------------------ |
+| name    | string | unique timer name |
+| func    | string | timer function name |
+| oneshot | bool   | true = single shot timer, false = periodic timer |
+| period  | number | timer period in msec |
+| fires   | number | number of timer calls made |
+
+
+#### timer_enum
+
+Get an array of unique names of all existing timers.
+
+```
+function timer_enum()
+```
+
 
 
 # zapret-lib.lua base function library
