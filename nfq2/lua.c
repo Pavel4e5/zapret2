@@ -3858,7 +3858,7 @@ static int lua_push_timer_info(lua_State *L, const timer_pool *timer)
 }
 static int luacall_timer_info(lua_State *L)
 {
-	// timer_del(name)
+	// timer_info(name)
 	lua_check_argc(L,"timer_info",1);
 
 	LUA_STACK_GUARD_ENTER(L)

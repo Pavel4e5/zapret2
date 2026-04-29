@@ -2451,7 +2451,7 @@ function timer_del(name)
 Get information about the timer identified by name.
 
 ```
-function timer_del(name)
+function timer_info(name)
 ```
 
 Returns table in case of success, nil otherwise.
