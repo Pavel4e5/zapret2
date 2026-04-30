@@ -653,7 +653,6 @@ General parameters for all versions - nfqws2, dvtws2, winws2.
  --ipcache-lifetime=<int>                               ; IP cache entry lifetime in seconds. 0 - unlimited.
  --ipcache-hostname=[0|1]                               ; 1 or no argument enables hostname caching for use in zero-phase strategies
  --reasm-disable=[type[,type]]                          ; disable fragment reassembly for a list of payloads: tls_client_hello quic_initial. without arguments - disable reasm for everything.
- --timer-res=msec					; timer resolution in msec. default - 50
 
 DESYNC ENGINE INIT:
  --writeable[=<dir_name>]                               ; create a directory for Lua with write permissions and store its path in the "WRITEABLE" env variable (only one directory)
@@ -1607,15 +1606,6 @@ nfqws2 is a single-threaded program, like the Lua engine. Timers are called in t
 In Linux and Windows, packets are received in blocks, not one at a time. A block is processed until all remaining packets are exhausted.
 Timers are called between block processing. If processing takes a significant amount of time, the timer call may not be perfectly timed.
 
-It's important to remember the timer resolution specified with the `--timer-res` parameter. The default is 50 ms.
-This means that the timer call check can be performed no more frequently than the specified interval.
-If you set the period to 70 ms, the timer will be called staggered. +70 will be called at 100, +140 at 150, and +210 at 250.
-Therefore, it's advisable to set the period to a multiple of the timer resolution.
-Increasing the resolution (decreasing `--timer-res`) may slightly increase CPU load,
-since the processor will wake up every specified period to check all timers.
-The more timers, the higher CPU load for checking.
-The maximum resolution is 100 checks per second, which corresponds to `--timer-res=10`.
-
 Timers can be useful for handling unreplied packets.
 For example, you need to send something somewhere and read the response. But the other party might not respond or the response might not arrive.
 To prevent your system from hanging in an undefined state and leaving garbage in memory, a timer can help.
@@ -2418,7 +2408,7 @@ The instance performing the cancellation takes over the coordination of further 
 
 ### Timer control
 
-[Timer](#timers) creation and deletion functions can be called from any Lua code.
+Timer creation and deletion functions can be called from any Lua code.
 This could be lua-init, lua-desync, or a timer function. A timer function can also act on itself, such as changing the period or terminating its own calls.
 
 Timers are identified by a name. Multiple timers with different names can call the same timer function.
@@ -2451,7 +2441,7 @@ function timer_del(name)
 Get information about the timer identified by name.
 
 ```
-function timer_info(name)
+function timer_del(name)
 ```
 
 Returns table in case of success, nil otherwise.
